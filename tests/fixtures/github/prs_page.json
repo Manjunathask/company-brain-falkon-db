@@ -1,0 +1,14 @@
+{
+  "data": {
+    "rateLimit": {"cost": 1, "remaining": 4999, "resetAt": "2026-10-16T12:00:00Z"},
+    "repository": {
+      "pullRequests": {
+        "nodes": [
+          {"number": 90, "title": "Recent", "state": "MERGED", "createdAt": "2026-10-16T00:00:00Z", "mergedAt": "2026-10-16T01:00:00Z", "body": "", "author": {"login": "OctoCat"}, "reviews": {"nodes": []}},
+          {"number": 89, "title": "Before window", "state": "CLOSED", "createdAt": "2024-10-14T00:00:00Z", "mergedAt": null, "body": "", "author": {"login": "old"}, "reviews": {"nodes": []}}
+        ],
+        "pageInfo": {"hasNextPage": true, "endCursor": "must-not-follow"}
+      }
+    }
+  }
+}

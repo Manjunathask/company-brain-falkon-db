@@ -1,0 +1,18 @@
+// Answers: load GitHub pull requests and their opener/reviewer people.
+// Parameters: $rows has PR properties, author/login handle/bot fields, and reviewers as {login, handle, bot} maps.
+// Shape: stable MERGE keys make replay safe; missing GitHub authors are represented by the normalized `ghost` placeholder. Reviewer rows carry their handle and bot flag directly.
+UNWIND $rows AS row
+MERGE (pr:PR {number: row.number})
+SET pr.title = row.title, pr.state = row.state, pr.createdAt = row.createdAt,
+    pr.mergedAt = row.mergedAt, pr.body = row.body
+WITH pr, row
+MERGE (author:Person {login: row.author})
+SET author.handle = coalesce(author.handle, row.authorHandle),
+    author.bot = coalesce(author.bot, false) OR row.authorBot
+MERGE (author)-[:OPENED]->(pr)
+WITH pr, row
+UNWIND row.reviewers AS r
+MERGE (p:Person {login: r.login})
+SET p.handle = coalesce(p.handle, r.handle),
+    p.bot = coalesce(p.bot, false) OR r.bot
+MERGE (p)-[:REVIEWED]->(pr)

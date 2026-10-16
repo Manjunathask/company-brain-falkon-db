@@ -8,7 +8,8 @@ from redis.exceptions import RedisError
 
 from busfactor.db import ROOT, batched, create_indexes, get_graph, load_query
 from busfactor.ingest.codeowners import rows_for_loading
-from busfactor.ingest.identity import load_api_map, resolve_person_key
+from busfactor.ingest.identity import is_bot, load_api_map, resolve_person_key
+from busfactor.ingest.github_api import references
 
 RAW = ROOT / "data" / "raw"
 
@@ -47,6 +48,7 @@ def load_step(graph, step: str) -> None:
             row = dict(commit)
             row["author"] = resolve_person_key(commit["authorEmail"], api_map)
             row["authorHandle"] = api_map.get(commit["authorEmail"])
+            row["authorBot"] = is_bot(row["author"])
             rows.append(row)
         _run_rows(graph, "01_load_commits", rows, "commits")
     elif step == "decisions":
@@ -56,17 +58,28 @@ def load_step(graph, step: str) -> None:
     elif step == "codeowners":
         rows = rows_for_loading(read_rows("codeowners.json"))
         _run_rows(graph, "02c_load_codeowners", rows, "codeowners")
+    elif step == "prs":
+        _run_rows(graph, "01c_load_prs", read_rows("prs.json"), "prs")
     elif step == "part_of":
         graph.query(load_query("01b_link_part_of"))
         print(f"part_of: linked matching commits; {_counts(graph)}")
+    elif step == "issues":
+        _run_rows(graph, "01d_load_issues", read_rows("rfc_issues.json"), "issues")
+    elif step == "references":
+        rows = [
+            {"pr": pr["number"], "issue": issue}
+            for pr in read_rows("prs.json")
+            for issue in sorted(references(pr.get("body")))
+        ]
+        _run_rows(graph, "01e_link_references", rows, "references")
     else:
         raise ValueError(f"unknown load step: {step}")
 
 
 def main(argv: list[str] | None = None) -> int:
     args = list(sys.argv[1:] if argv is None else argv)
-    if len(args) != 1 or args[0] not in {"indexes", "commits", "decisions", "codeowners", "part_of", "all"}:
-        print("Usage: python -m busfactor.load {indexes,commits,decisions,codeowners,part_of,all}", file=sys.stderr)
+    if len(args) != 1 or args[0] not in {"indexes", "commits", "decisions", "codeowners", "prs", "part_of", "issues", "references", "all"}:
+        print("Usage: python -m busfactor.load {indexes,commits,decisions,codeowners,prs,part_of,issues,references,all}", file=sys.stderr)
         return 2
     try:
         graph = get_graph()
@@ -74,7 +87,7 @@ def main(argv: list[str] | None = None) -> int:
     except (RedisError, OSError, ConnectionError) as exc:
         print(f"FalkorDB is unreachable. Start it with 'docker compose up -d' and check FALKORDB_HOST/PORT: {exc}", file=sys.stderr)
         return 1
-    steps = ["indexes", "commits", "decisions", "codeowners", "part_of"] if args[0] == "all" else args
+    steps = ["indexes", "commits", "decisions", "codeowners", "prs", "part_of", "issues", "references"] if args[0] == "all" else args
     try:
         for step in steps:
             load_step(graph, step)
