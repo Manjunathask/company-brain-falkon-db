@@ -24,6 +24,7 @@
         <section id="chat-panel" class="panel active-panel">
           <div class="panel-heading"><div><p class="eyebrow">Graph assistant</p><h1>Ask about Delta</h1><p>Answers are grounded in FalkorDB traversals. Expand “How I know” to inspect the Cypher.</p></div></div>
           <div class="identity-row"><label for="user-input">Your GitHub login</label><input id="user-input" value="murali-db" autocomplete="username"></div>
+          <section class="team-memory"><h2>Team memory</h2><ul id="team-memory-list"><li class="muted">Loading shared observationsâ€¦</li></ul></section>
           <div id="chat-list" class="chat-list" aria-live="polite"></div>
           <form id="ask-form" class="ask-form"><label class="sr-only" for="question-input">Question</label><textarea id="question-input" rows="2" placeholder="What does the project lose if murali-db leaves?" required></textarea><button class="primary" type="submit">Ask <span aria-hidden="true">↗</span></button></form>
           <div class="suggestions"><button>What does the project lose if this maintainer leaves?</button><button>Who knows the kernel best?</button></div>

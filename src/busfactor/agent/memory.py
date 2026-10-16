@@ -22,12 +22,14 @@ def entity_keys(graph: dict) -> list[str]:
         prefix = ENTITY_PREFIXES.get(node.get("label"))
         key = node.get("key")
         if prefix and key is not None:
+            if prefix == "component" and str(key).endswith("/(test-resources)"):
+                continue
             keys.add(f"{prefix}:{key}")
     return sorted(keys)
 
 
 class Memory:
-    def __init__(self, user: str, graph=None):
+    def __init__(self, user: str, graph=None, team_memory=None):
         self.name = memory_graph_name(user)
         if graph is None:
             graph = get_client().select_graph(self.name)
@@ -35,6 +37,7 @@ class Memory:
         else:
             self.client = None
         self.graph = graph
+        self.team_memory = team_memory
 
     def _run(self, name: str, params: dict) -> list[dict]:
         result = self.graph.query(load_query(name), params)
@@ -42,7 +45,7 @@ class Memory:
         return [dict(zip(columns, row)) for row in result.result_set]
 
     def recall(self, keys: list[str] | None = None, *, delta_graph=None, now_ms: int | None = None) -> list[dict]:
-        rows = self._run("14c_mem_recall", {"keys": keys or [], "limit": 5})
+        rows = self._run("14c_mem_recall", {"keys": keys or [], "limit": 10000})
         if delta_graph is None:
             from busfactor.db import get_graph
             delta_graph = get_graph()
@@ -56,7 +59,59 @@ class Memory:
                                                   {"kind": prefix, "key": raw, "since": int(since)})
                     cols = [h[1] for h in result.header]
                     row["changedSinceLastAsked"] = [dict(zip(cols, r)) for r in result.result_set]
+        # A correction is shared as a user-provided claim; recall it by entity key
+        # even when the current user's private graph has no matching episode.
+        from busfactor.team_memory import TeamMemory
+        related_keys = keys or [row["entity"] for row in rows if row.get("entity")]
+        team_rows = (self.team_memory or TeamMemory()).recall(related_keys)
+        by_key = {}
+        for item in team_rows:
+            if item.get("kind") == "user_claim" and item.get("entity"):
+                by_key.setdefault(item["entity"], []).append({
+                    "text": item.get("text"), "source": item.get("source"), "ts": item.get("ts"),
+                    "userProvided": True,
+                })
+        for row in rows:
+            if row.get("entity") in by_key:
+                row["teamClaims"] = by_key[row["entity"]]
+        known = {row.get("entity") for row in rows}
+        for key, claims in by_key.items():
+            if key not in known:
+                rows.append({"entity": key, "lastAsked": None, "earlierQuestions": [],
+                             "corrections": [], "teamClaims": claims, "changedSinceLastAsked": []})
         return rows
+
+    def recall_for_prompt(self, question: str, question_keys: list[str] | None = None,
+                          *, delta_graph=None, limit: int = 8) -> list[dict]:
+        """Return a compact, question-relevant slice; recall() remains complete for the API."""
+        rows = [row for row in self.recall(delta_graph=delta_graph)
+                if not (str(row.get("entity") or "").startswith("component:") and
+                        str(row.get("entity") or "").endswith("/(test-resources)"))]
+        question_folded = question.casefold()
+        question_tokens = set(re.findall(r"[a-z0-9_-]+", question_folded))
+        exact = set(question_keys or [])
+
+        def rank(row):
+            entity = str(row.get("entity") or "")
+            raw = entity.partition(":")[2].casefold()
+            tokens = set(re.findall(r"[a-z0-9_-]+", raw))
+            matches = entity in exact or (raw and raw in question_folded) or bool((tokens - {"core", "files"}) & question_tokens)
+            return (int(matches), int(row.get("lastAsked") or 0))
+
+        selected = sorted(rows, key=rank, reverse=True)[:limit]
+        compact = []
+        for row in selected:
+            item = dict(row)
+            changes = item.get("changedSinceLastAsked") or []
+            changes = [change for change in changes
+                       if int(change.get("commitCount") or 0) > 0 or int(change.get("prCount") or 0) > 0]
+            if changes:
+                item["changedSinceLastAsked"] = changes
+            else:
+                item.pop("changedSinceLastAsked", None)
+            item = {key: value for key, value in item.items() if value not in (None, [], {}, "")}
+            compact.append(item)
+        return compact
 
     def record_episode(self, session_id: str, text: str, answer: str, tool_names: list[str], keys: list[str], ts: int | None = None) -> dict:
         stamp = ts or int(datetime.now(timezone.utc).timestamp() * 1000)
@@ -69,6 +124,9 @@ class Memory:
             raise ValueError("key must use person:, component:, module:, or decision:")
         stamp = ts or int(datetime.now(timezone.utc).timestamp() * 1000)
         row = self._run("14b_mem_store_correction", {"key": key, "text": text, "ts": stamp, "source": source})[0]
+        from busfactor.team_memory import TeamMemory
+        (self.team_memory or TeamMemory()).write_observation(agent=f"chat:{self.name[4:]}", text=text, ts=stamp,
+                                                             kind="user_claim", source=source, key=key)
         return {"tool": "remember_correction", "params": {"key": key, "text": text, "source": source},
                 "cypher": load_query("14b_mem_store_correction"), "rows": [row], "graph": {"nodes": [], "edges": []}}
 

@@ -98,12 +98,23 @@ function showMemoryRecall(item){
   byId("memory-banner").textContent=`Last time you asked${question?` “${question}”`:""} about ${entity}; since then ${changed} new commits are connected to it.`;
   byId("memory-banner").classList.remove("hidden");
 }
+async function loadTeamMemory(){
+  const list=byId("team-memory-list");
+  try{const team=await api("/api/team");list.replaceChildren();
+    const items=(team.observations||[]).slice(0,8);
+    if(!items.length){list.append(el("li","muted","No shared observations yet."));return;}
+    items.forEach(item=>{const claim=item.kind==="user_claim"?" · user-provided claim":"";
+      const when=item.ts?new Date(Number(item.ts)).toLocaleString():"time unknown";
+      list.append(el("li","",`${item.agent} · ${when}${claim}: ${item.text}`));});
+  }catch(error){list.replaceChildren(el("li","muted",`Team memory unavailable: ${error.message}`));}
+}
 function renderAnswer(result, question) {
   const user=el("article","chat-message user-message"),userLabel=el("div","message-label","You"),userText=el("div","answer-text",question);user.append(userLabel,userText);
   const answer=el("article","chat-message"),label=el("div","message-label","Bus Factor · graph answer"),text=el("div","answer-text",result.answer||"No answer returned."),details=document.createElement("details"),summary=el("summary","",`How I know · ${result.tool_calls?.length||0} graph tool calls`),calls=el("div","tool-calls");
   details.append(summary,calls);renderToolCalls(calls,result.tool_calls||[]);answer.append(label,text,details);byId("chat-list").append(user,answer);byId("chat-list").scrollTop=byId("chat-list").scrollHeight;
   showEvidence(capGraph(result.graph,60),result.graph,false);
   if(result.memory_recall?.length)showMemoryRecall(result.memory_recall[0]);
+  loadTeamMemory();
 }
 byId("ask-form").addEventListener("submit",async event=>{
   event.preventDefault();const question=byId("question-input").value.trim(),user=byId("user-input").value.trim();if(!question||!user)return;
@@ -211,3 +222,4 @@ async function init(){
   catch(_){}
 }
 init();
+loadTeamMemory();

@@ -7,9 +7,11 @@ from redis.exceptions import RedisError, ResponseError
 
 from busfactor.agent.memory import Memory
 from busfactor.db import load_query
+from busfactor.team_memory import TeamMemory
 
 pytestmark = pytest.mark.integration
 MEMORY_GRAPH = "mem_test_wp7"
+TEAM_GRAPH = "mem_test_wp7_team"
 FIXTURE_GRAPH = "bf_test"
 
 
@@ -25,15 +27,16 @@ def graphs():
         client.connection.ping()
     except (RedisError,OSError,ConnectionError) as exc:
         pytest.skip(f"FalkorDB is unreachable: {exc}")
-    _delete(client,MEMORY_GRAPH); _delete(client,FIXTURE_GRAPH)
+    _delete(client,MEMORY_GRAPH); _delete(client,TEAM_GRAPH); _delete(client,FIXTURE_GRAPH)
     memory = client.select_graph(MEMORY_GRAPH)
+    team = client.select_graph(TEAM_GRAPH)
     delta_fixture = client.select_graph(FIXTURE_GRAPH)
-    yield client,memory,delta_fixture
-    _delete(client,MEMORY_GRAPH); _delete(client,FIXTURE_GRAPH); client.close()
+    yield client,memory,delta_fixture,team
+    _delete(client,MEMORY_GRAPH); _delete(client,TEAM_GRAPH); _delete(client,FIXTURE_GRAPH); client.close()
 
 
 def test_memory_record_recall_correction_and_changed_since(graphs):
-    _client, memory_graph, delta = graphs
+    _client, memory_graph, delta, team_graph = graphs
     delta.query("""
       CREATE (p:Person {login:'alice'})-[:AUTHORED]->(c:Commit {sha:'newer',ts:200,subject:'new'})
       CREATE (c)-[:PART_OF]->(pr:PR {number:42,title:'Fixture PR',mergedAt:200})
@@ -41,14 +44,17 @@ def test_memory_record_recall_correction_and_changed_since(graphs):
       CREATE (:Module {name:'kernel'})
       CREATE (:Decision {slug:'fixture-decision'})
     """)
-    memory = Memory("test_wp7", graph=memory_graph)
+    memory = Memory("test_wp7", graph=memory_graph, team_memory=TeamMemory(team_graph))
     memory.record_episode("session-1", "what changed?", "A fixture answer", ["find_entity"], ["person:alice"], ts=100)
     memory.store_correction("person:alice", "Alice still owns kernel", "user", ts=110)
+    memory.record_episode("session-2", "who is Bob?", "Bob fixture", ["find_entity"], ["person:bob"], ts=120)
     recalled = memory.recall(delta_graph=delta)
-    assert recalled[0]["entity"] == "person:alice"
-    assert recalled[0]["earlierQuestions"] == ["what changed?"]
-    assert recalled[0]["corrections"][0]["text"] == "Alice still owns kernel"
-    changes = recalled[0]["changedSinceLastAsked"][0]
+    alice = next(row for row in recalled if row["entity"] == "person:alice")
+    bob = next(row for row in recalled if row["entity"] == "person:bob")
+    assert alice["earlierQuestions"] == ["what changed?"]
+    assert alice["corrections"][0]["text"] == "Alice still owns kernel"
+    assert bob["corrections"] == []
+    changes = alice["changedSinceLastAsked"][0]
     assert changes["commitCount"] == 1
     assert changes["prCount"] == 1
     assert changes["prs"][0]["number"] == 42
@@ -56,7 +62,7 @@ def test_memory_record_recall_correction_and_changed_since(graphs):
 
 
 def test_changed_since_fixture_components_modules_and_decisions(graphs):
-    _client, _memory_graph, delta = graphs
+    _client, _memory_graph, delta, _team_graph = graphs
     delta.query("""
       CREATE (m:Module {name:'kernel'})<-[:IN_MODULE]-(f:File {path:'kernel/A.scala'})
       CREATE (component:Component {name:'kernel/test'})<-[:IN_COMPONENT]-(f)

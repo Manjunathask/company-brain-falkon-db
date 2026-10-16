@@ -4,6 +4,7 @@
 UNWIND $rows AS row
 MERGE (pr:PR {number: row.number})
 SET pr.title = row.title, pr.state = row.state, pr.createdAt = row.createdAt,
+    pr.updatedAt = coalesce(row.updatedAt, row.mergedAt, row.createdAt),
     pr.mergedAt = row.mergedAt, pr.body = row.body
 WITH pr, row
 MERGE (author:Person {login: row.author})

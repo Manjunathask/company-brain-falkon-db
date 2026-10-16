@@ -34,6 +34,62 @@ The query stays within one user's memory graph; Python joins each returned entit
 
 All traversals run on the `delta` graph and return a zero-count row when no newer evidence exists.
 
+## `15_refresh_watermarks.cypher`
+
+**What it answers:** return the latest loaded Commit timestamp and PR update timestamp.
+
+**Parameters:** none.
+
+Independent optional matches preserve one row for an empty graph, letting refresh use either timestamp as a strict incremental watermark.
+
+## `15a_refresh_head_files.cypher`
+
+**What it answers:** recompute `File.exists` from the current repository HEAD snapshot.
+
+**Parameters:** $paths is the normalized list of paths present at HEAD.
+
+The update visits every known file so deletions are reflected even on a refresh with no new commits; historical File and TOUCHED nodes remain available.
+
+## `15b_refresh_component_risk.cypher`
+
+**What it answers:** classify each Component as ORPHANED, AT RISK, or COVERED using current active experts.
+
+**Parameters:** $since is the activity-window start in epoch milliseconds.
+
+It counts distinct active non-bot Person nodes linked by recent KNOWS edges and applies the same thresholds as the departure-impact query.
+
+## `16_team_write_observation.cypher`
+
+**What it answers:** write an idempotent shared observation for an entity in `mem_team`.
+
+**Parameters:** $id, $agent, $text, $ts, $kind, $source, and $key.
+
+Stable observation IDs make watcher retries safe; `Entity.key` lets Python join memory to the separate Delta graph.
+
+## `16b_team_recall.cypher`
+
+**What it answers:** retrieve observations about selected entities plus the newest five team observations.
+
+**Parameters:** $keys is a list of entity keys such as `component:kernel/kernel-api`.
+
+It runs only in `mem_team`; Python supplies resolved keys and deduplicates the entity-specific and recent context.
+
+## `16c_team_record_refresh.cypher`
+
+**What it answers:** persist a RefreshRun record and connect the observations produced by that run.
+
+**Parameters:** $id, $ts, $newCommits, $newPRs, and $observationIds.
+
+The run ID is stable for the refresh timestamp, and each observed note is matched by its deterministic ID.
+
+## `16d_team_list.cypher`
+
+**What it answers:** return recent shared observations and refresh summaries for `GET /api/team`.
+
+**Parameters:** $limit caps both result lists.
+
+Observations and refresh runs are collected independently to avoid multiplying rows when both collections have several entries.
+
 ## `00_counts.cypher`
 
 **What it answers:** report total node and relationship counts for a graph.

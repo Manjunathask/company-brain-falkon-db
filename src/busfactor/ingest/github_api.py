@@ -59,6 +59,7 @@ def parse_pr(raw: dict) -> dict:
     return {
         "number": int(raw["number"]), "title": raw.get("title") or "",
         "state": raw.get("state"), "createdAt": _epoch_ms(raw.get("createdAt")),
+        "updatedAt": _epoch_ms(raw.get("updatedAt")),
         "mergedAt": _epoch_ms(raw.get("mergedAt")), "body": raw.get("body") or "",
         "author": author, "authorHandle": author_handle,
         "authorBot": is_bot(author), "reviewers": list(reviewers.values()),
@@ -199,7 +200,7 @@ def _rfc_numbers() -> list[int]:
     return sorted({int(row["issue"]) for row in json.loads(path.read_text(encoding="utf-8"))})
 
 
-PR_FIELDS = "number title state createdAt mergedAt body author { login } reviews(first: 30) { nodes { author { login } state submittedAt } }"
+PR_FIELDS = "number title state createdAt updatedAt mergedAt body author { login } reviews(first: 30) { nodes { author { login } state submittedAt } }"
 ISSUE_FIELDS = "number title state createdAt author { login } comments(first: 100) { nodes { author { login } createdAt } pageInfo { hasNextPage endCursor } }"
 
 

@@ -105,7 +105,7 @@ def _tool_result_chars(result: dict) -> int:
     return len(json.dumps(block, ensure_ascii=False))
 
 
-def _first_user_message(question: str, today: str, recalled: list[dict]) -> str:
+def _first_user_message(question: str, today: str, recalled: list[dict], team_recall: list[dict] | None = None) -> str:
     sections = [f"Today is {today}."]
     if recalled:
         labels = {"entity":"Entity", "lastAsked":"Last asked", "earlierQuestions":"Earlier questions",
@@ -114,6 +114,22 @@ def _first_user_message(question: str, today: str, recalled: list[dict]) -> str:
         for item in recalled:
             lines = []
             for key, value in item.items():
+                if key == "changedSinceLastAsked" and value and item.get("lastAsked"):
+                    stamp = datetime.fromtimestamp(int(item["lastAsked"]) / 1000, timezone.utc).astimezone().strftime("%Y-%m-%d %H:%M")
+                    commits = sum(int(change.get("commitCount") or 0) for change in value)
+                    prs = sum(int(change.get("prCount") or 0) for change in value)
+                    authors = sorted({commit.get("author") for change in value for commit in change.get("commits", []) if commit.get("author")})
+                    entity = item.get("entity", "entity")
+                    by = ", ".join(authors) or "unknown authors"
+                    change_text = f"{commits} new commits by {by}" if commits else f"{prs} new PRs"
+                    if commits and prs:
+                        change_text += f" and {prs} new PRs"
+                    lines.append(f"  Since you last asked about {entity} ({stamp}): {change_text}.")
+                    continue
+                if key == "lastAsked" and value:
+                    stamp = datetime.fromtimestamp(int(value) / 1000, timezone.utc).astimezone().strftime("%Y-%m-%d %H:%M")
+                    lines.append(f"  Last asked: {stamp}")
+                    continue
                 if value is None or value == [] or value == {}:
                     continue
                 rendered = json.dumps(value, ensure_ascii=False, default=str)
@@ -122,6 +138,12 @@ def _first_user_message(question: str, today: str, recalled: list[dict]) -> str:
                 entries.append("\n".join(lines))
         if entries:
             sections.append("What you remember about this user:\n" + "\n".join(entries))
+    if team_recall:
+        entries = []
+        for item in team_recall:
+            provenance = "User-provided claim" if item.get("kind") == "user_claim" else item.get("kind", "team observation")
+            entries.append(f"- [{provenance}; {item.get('agent')}]: {item.get('text')} (entity: {item.get('entity')})")
+        sections.append("Shared team memory:\n" + "\n".join(entries))
     sections.append(f"Question: {question}")
     return "\n\n".join(sections)
 
@@ -135,8 +157,16 @@ def ask(question: str, user: str, session_id: str | None = None, llm=None, *, me
     memory = memory or Memory(user)
     session_id = session_id or str(uuid.uuid4())
     now = datetime.now(timezone.utc)
-    recalled = memory.recall(delta_graph=graph)
-    messages = [{"role":"user", "content":_first_user_message(question, now.date().isoformat(), recalled)}]
+    from busfactor.team_memory import TeamMemory
+    question_keys = []
+    try:
+        question_keys = entity_keys(graph_tools.find_entity(question).get("graph", {}))
+    except Exception:
+        pass
+    team_recall = TeamMemory().recall(question_keys)
+    recalled = memory.recall_for_prompt(question, question_keys, delta_graph=graph)
+    messages = [{"role":"user", "content":_first_user_message(question, now.date().isoformat(), recalled,
+                                                                  team_recall=team_recall)}]
     evidence = {"nodes": [], "edges": []}
     trail, entities, usages = [], set(), []
     successful_tool_count = 0
@@ -217,4 +247,5 @@ def ask(question: str, user: str, session_id: str | None = None, llm=None, *, me
         answer = "I could not establish an answer because no successful tool returned FalkorDB evidence."
     memory.record_episode(session_id, question, answer, [item["tool"] for item in trail], sorted(entities))
     return {"answer":answer, "tool_calls":trail, "graph":evidence, "entities":sorted(entities),
-            "stop_reason":stop_reason, "usage":usages, "memory_recall":recalled}
+            "stop_reason":stop_reason, "usage":usages, "memory_recall":recalled,
+            "team_memory":team_recall}

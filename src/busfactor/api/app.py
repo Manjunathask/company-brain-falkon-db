@@ -13,6 +13,7 @@ from busfactor import tools as graph_tools
 from busfactor.agent.loop import _validate, ask, tool_specs
 from busfactor.agent.memory import Memory
 from busfactor.db import get_graph, load_query
+from busfactor.team_memory import TeamMemory
 
 
 class AskRequest(BaseModel):
@@ -250,6 +251,14 @@ def memory(user: str):
         return {**store.snapshot(), "recall": store.recall(delta_graph=get_graph())}
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.get("/api/team")
+def team_memory():
+    try:
+        return TeamMemory().snapshot()
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 

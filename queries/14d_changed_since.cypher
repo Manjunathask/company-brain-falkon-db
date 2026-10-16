@@ -20,5 +20,6 @@ WITH commits, directPrs, collect(DISTINCT commitPr) AS linkedPrs
 WITH commits, directPrs + linkedPrs AS allPrs
 WITH commits, [x IN allPrs WHERE x IS NOT NULL] AS prs
 RETURN size(commits) AS commitCount, size(prs) AS prCount,
-       [x IN commits | {sha:x.sha, subject:x.subject, ts:x.ts}] AS commits,
+       [x IN commits | {sha:x.sha, subject:x.subject, ts:x.ts,
+                        author:head([(person:Person)-[:AUTHORED]->(x) | person.login])}] AS commits,
        [x IN prs | {number:x.number, title:x.title, mergedAt:x.mergedAt}] AS prs

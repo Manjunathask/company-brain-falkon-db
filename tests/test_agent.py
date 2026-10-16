@@ -11,6 +11,7 @@ from busfactor.agent.memory import entity_keys
 class FakeMemory:
     def __init__(self): self.saved = []
     def recall(self, **kwargs): return [{"entity":"person:alice", "corrections":[{"text":"fixture correction"}]}]
+    def recall_for_prompt(self, question, question_keys, **kwargs): return self.recall(**kwargs)
     def record_episode(self, *args): self.saved.append(args)
 
 

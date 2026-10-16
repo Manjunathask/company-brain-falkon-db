@@ -41,6 +41,29 @@ def test_health_and_tools_contract(client):
     assert any(tool["name"] == "find_entity" and "input_schema" in tool for tool in tools)
 
 
+def test_team_endpoint_returns_observations_and_refresh_runs(client, monkeypatch):
+    monkeypatch.setattr(api, "TeamMemory", lambda: type("Team", (), {"snapshot": lambda self: {
+        "observations": [{"agent": "watcher", "text": "risk changed", "ts": 10}],
+        "refreshRuns": [{"newCommits": 1, "newPRs": 0, "ts": 10}],
+    }})())
+    response = client.get("/api/team")
+    assert response.status_code == 200
+    assert response.json()["observations"][0]["agent"] == "watcher"
+    assert response.json()["refreshRuns"][0]["newCommits"] == 1
+
+
+def test_memory_endpoint_keeps_complete_recall_for_ui(client, monkeypatch):
+    rows = [{"entity": f"component:area/{index}", "lastAsked": index} for index in range(12)]
+    class Store:
+        def __init__(self, user): pass
+        def snapshot(self): return {"episodes": []}
+        def recall(self, **kwargs): return rows
+    monkeypatch.setattr(api, "Memory", Store)
+    response = client.get("/api/memory/reviewer_live")
+    assert response.status_code == 200
+    assert len(response.json()["recall"]) == 12
+
+
 def test_static_assets_are_not_cached(client):
     assert "no-cache" in client.get("/").headers["cache-control"]
     assert "no-cache" in client.get("/app.js").headers["cache-control"]

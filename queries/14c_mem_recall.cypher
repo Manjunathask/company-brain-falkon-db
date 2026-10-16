@@ -15,5 +15,6 @@ OPTIONAL MATCH (entity)<-[:CORRECTS]-(c:Correction)
 RETURN entity.key AS entity,
        max(coalesce(known.ts, recent.ts)) AS lastAsked,
        collect(DISTINCT coalesce(known.text, recent.text))[0..3] AS earlierQuestions,
-       collect(DISTINCT {text:c.text, source:c.source, ts:c.ts}) AS corrections
+       collect(DISTINCT CASE WHEN c IS NULL THEN null
+                             ELSE {text:c.text, source:c.source, ts:c.ts} END) AS corrections
 ORDER BY lastAsked DESC

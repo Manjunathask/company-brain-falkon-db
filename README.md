@@ -52,7 +52,7 @@ Open [http://127.0.0.1:8000](http://127.0.0.1:8000). The API binds to `127.0.0.1
 
 ## Memory (Track 02)
 
-Each user has a separate `mem_<login>` FalkorDB graph. Questions are recorded as session episodes linked to the Delta entities the graph tools touched, and explicit user corrections are stored with their source. Later sessions recall related questions and corrections, then query the Delta graph for changes since the last time an entity was discussed; memory never edits the Delta graph.
+Each user has a separate `mem_<login>` graph for question episodes and sourced corrections. The shared `mem_team` graph holds deterministic watcher observations from incremental refreshes and user-provided claims from chat corrections; claims keep their source and are labeled as claims rather than graph facts. Before answering, the agent recalls team observations for entities in the question plus the newest team notes, and per-user recall reports changes in Delta since each entity was last discussed. Refresh runs from `uv run python -m busfactor.refresh` (use `--no-pull` or `--no-github` to skip either source); the watcher records risk changes, newly active decision work, and people who became inactive.
 
 ## Built with AI assistance
 
