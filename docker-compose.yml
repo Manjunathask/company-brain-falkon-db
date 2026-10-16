@@ -3,8 +3,9 @@ services:
     image: falkordb/falkordb:v4.22.0
     restart: unless-stopped
     ports:
-      - "6379:6379"
-      - "3000:3000"
+      # Keep the database and browser UI reachable only from this machine.
+      - "127.0.0.1:6379:6379"
+      - "127.0.0.1:3000:3000"
     environment:
       FALKORDB_ARGS: ${FALKORDB_ARGS:-}
     volumes:

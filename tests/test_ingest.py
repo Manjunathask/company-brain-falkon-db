@@ -6,7 +6,7 @@ from busfactor.ingest.codeowners import parse_codeowners, rows_for_loading
 from busfactor.ingest.git_log import parse_git_log
 from busfactor.ingest.identity import load_api_map, normalize_login, resolve_person_key
 from busfactor.ingest.rfcs import README, parse_rfcs
-from busfactor.db import load_query
+from busfactor.db import is_duplicate_index_error, load_query
 
 
 def test_git_log_parses_binary_root_and_area():
@@ -83,3 +83,8 @@ def test_load_query_reads_known_cypher():
     assert "MERGE (c)-[:PART_OF]" not in query
     with pytest.raises(ValueError):
         load_query("../AGENTS")
+
+
+def test_duplicate_index_error_rule_matches_only_falkordb_duplicate_message():
+    assert is_duplicate_index_error(Exception("Attribute 'login' is already indexed"))
+    assert not is_duplicate_index_error(Exception("permission denied"))

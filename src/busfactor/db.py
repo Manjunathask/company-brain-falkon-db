@@ -38,9 +38,14 @@ def create_indexes(graph) -> None:
         try:
             graph.query(statement)
         except ResponseError as exc:
-            if "Index already exists" not in str(exc):
+            if not is_duplicate_index_error(exc):
                 raise
             print("exists")
+
+
+def is_duplicate_index_error(error: Exception) -> bool:
+    """Match the FalkorDB error that create_indexes treats as an idempotent duplicate."""
+    return "is already indexed" in str(error)
 
 
 def run_query(name: str, params: dict | None = None):

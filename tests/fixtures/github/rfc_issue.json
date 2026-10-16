@@ -1,0 +1,14 @@
+{
+  "number": 1234,
+  "title": "RFC discussion",
+  "state": "CLOSED",
+  "createdAt": "2026-10-14T00:00:00Z",
+  "author": {"login": "Owner"},
+  "comments": {
+    "nodes": [
+      {"author": {"login": "Reviewer"}, "createdAt": "2026-10-15T00:00:00Z"},
+      {"author": {"login": "Helper"}, "createdAt": "2026-10-15T00:00:00Z"},
+      {"author": {"login": "reviewer"}, "createdAt": "2026-10-16T00:00:00Z"}
+    ]
+  }
+}

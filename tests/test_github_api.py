@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 
 from busfactor.ingest import github_api
-from busfactor.ingest.github_api import GitHubGraphQL, _identity_map, _pr_rows, parse_pr, references
+from busfactor.ingest.github_api import GitHubGraphQL, _identity_map, _pr_rows, parse_issue, parse_pr, references
 from busfactor.ingest.identity import is_bot
 
 FIXTURES = Path(__file__).parent / "fixtures" / "github"
@@ -57,16 +57,25 @@ def test_pr_reviewers_are_distinct_and_exclude_author():
         "number": 1, "title": "T", "state": "OPEN", "createdAt": "2026-10-16T00:00:00Z",
         "mergedAt": None, "body": "", "author": {"login": "Owner"},
         "reviews": {"nodes": [
-            {"author": {"login": "Reviewer"}},
-            {"author": {"login": "reviewer"}},
-            {"author": {"login": "OWNER"}},
-            {"author": {"login": "dependabot[bot]"}},
+            {"author": {"login": "Reviewer"}, "submittedAt": "2026-10-15T00:00:00Z"},
+            {"author": {"login": "reviewer"}, "submittedAt": "2026-10-16T00:00:00Z"},
+            {"author": {"login": "OWNER"}, "submittedAt": "2026-10-16T01:00:00Z"},
+            {"author": {"login": "dependabot[bot]"}, "submittedAt": None},
         ]},
     })
     assert row["author"] == "owner"
     assert row["reviewers"] == [
-        {"login": "reviewer", "handle": "Reviewer", "bot": False},
-        {"login": "dependabot[bot]", "handle": "dependabot[bot]", "bot": True},
+        {"login": "reviewer", "handle": "reviewer", "bot": False, "at": 1792108800000},
+        {"login": "dependabot[bot]", "handle": "dependabot[bot]", "bot": True, "at": None},
+    ]
+
+
+def test_issue_commenters_keep_latest_comment_timestamp():
+    raw = fixture("rfc_issue.json")
+    row = parse_issue(raw)
+    assert row["commenters"] == [
+        {"login": "reviewer", "handle": "reviewer", "bot": False, "at": 1792108800000},
+        {"login": "helper", "handle": "Helper", "bot": False, "at": 1792022400000},
     ]
 
 

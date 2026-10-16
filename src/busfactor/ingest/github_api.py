@@ -49,34 +49,36 @@ def _person(raw: dict | None, *, placeholder: bool = False) -> tuple[str, str]:
 
 def parse_pr(raw: dict) -> dict:
     author, author_handle = _person(raw.get("author"), placeholder=True)
-    reviewers, seen = [], set()
+    reviewers = {}
     for review in raw.get("reviews", {}).get("nodes", []):
         login, handle = _person(review.get("author"))
-        if login and login != author and login not in seen:
-            reviewers.append({"login": login, "handle": handle, "bot": is_bot(login)})
-            seen.add(login)
+        if login and login != author:
+            at = _epoch_ms(review.get("submittedAt"))
+            if login not in reviewers or (at is not None and (reviewers[login]["at"] is None or at > reviewers[login]["at"])):
+                reviewers[login] = {"login": login, "handle": handle, "bot": is_bot(login), "at": at}
     return {
         "number": int(raw["number"]), "title": raw.get("title") or "",
         "state": raw.get("state"), "createdAt": _epoch_ms(raw.get("createdAt")),
         "mergedAt": _epoch_ms(raw.get("mergedAt")), "body": raw.get("body") or "",
         "author": author, "authorHandle": author_handle,
-        "authorBot": is_bot(author), "reviewers": reviewers,
+        "authorBot": is_bot(author), "reviewers": list(reviewers.values()),
     }
 
 
 def parse_issue(raw: dict) -> dict:
     author, author_handle = _person(raw.get("author"), placeholder=True)
-    commenters, seen = [], set()
+    commenters = {}
     for comment in raw.get("comments", {}).get("nodes", []):
         login, handle = _person(comment.get("author"))
-        if login and login not in seen:
-            commenters.append({"login": login, "handle": handle, "bot": is_bot(login)})
-            seen.add(login)
+        if login:
+            at = _epoch_ms(comment.get("createdAt"))
+            if login not in commenters or (at is not None and (commenters[login]["at"] is None or at > commenters[login]["at"])):
+                commenters[login] = {"login": login, "handle": handle, "bot": is_bot(login), "at": at}
     return {
         "number": int(raw["number"]), "title": raw.get("title") or "",
         "state": raw.get("state"), "createdAt": _epoch_ms(raw.get("createdAt")),
         "author": author, "authorHandle": author_handle,
-        "authorBot": is_bot(author), "commenters": commenters,
+        "authorBot": is_bot(author), "commenters": list(commenters.values()),
     }
 
 

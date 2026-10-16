@@ -20,6 +20,9 @@ packages = ["src/busfactor"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+markers = [
+    "integration: tests that execute queries against a live FalkorDB instance",
+]
 
 [dependency-groups]
 dev = [
