@@ -5,6 +5,7 @@ description = "Bus Factor: a company brain for Delta Lake, on FalkorDB"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "anthropic>=1.15.0",
     "falkordb>=1.8.0",
     "httpx>=0.28.1",
     "python-dotenv>=1.2.4",
