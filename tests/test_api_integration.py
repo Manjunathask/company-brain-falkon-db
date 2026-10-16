@@ -41,6 +41,21 @@ def test_health_and_tools_contract(client):
     assert any(tool["name"] == "find_entity" and "input_schema" in tool for tool in tools)
 
 
+def test_static_assets_are_not_cached(client):
+    assert "no-cache" in client.get("/").headers["cache-control"]
+    assert "no-cache" in client.get("/app.js").headers["cache-control"]
+
+
+def test_departure_focus_uses_rooted_layout_and_full_evidence_keeps_cose():
+    from pathlib import Path
+    app_js = Path(__file__).resolve().parents[1] / "web" / "app.js"
+    source = app_js.read_text(encoding="utf-8")
+    assert 'name:"breadthfirst"' in source
+    assert 'roots:state.cy.nodes().filter(node=>node.data("root")===true)' in source
+    assert 'state.evidence.rooted&&!state.evidence.showFull' in source
+    assert 'name:"cose"' in source
+
+
 def test_direct_tool_endpoint_returns_cypher_rows_and_graph(client):
     response = client.post("/api/tools/find_entity", json={"params":{"text":"alice"}})
     assert response.status_code == 200

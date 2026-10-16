@@ -28,6 +28,14 @@ class ToolRequest(BaseModel):
 app = FastAPI(title="Bus Factor API", version="1.0")
 
 
+@app.middleware("http")
+async def prevent_stale_static_assets(request, call_next):
+    response = await call_next(request)
+    if request.url.path == "/" or not request.url.path.startswith("/api/"):
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    return response
+
+
 def _columns(result) -> list[str]:
     return [header[1] for header in result.header]
 

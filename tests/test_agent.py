@@ -1,7 +1,10 @@
 import json
+import inspect
 
+from busfactor import tools as graph_tools
 from busfactor.agent.llm import ScriptedLLM, Step
-from busfactor.agent.loop import ask, _first_user_message
+from busfactor.agent.loop import ask, _first_user_message, tool_specs
+from busfactor.agent.memory import Memory
 from busfactor.agent.memory import entity_keys
 
 
@@ -9,6 +12,22 @@ class FakeMemory:
     def __init__(self): self.saved = []
     def recall(self, **kwargs): return [{"entity":"person:alice", "corrections":[{"text":"fixture correction"}]}]
     def record_episode(self, *args): self.saved.append(args)
+
+
+def test_claude_tool_schemas_have_bounded_optional_parameters_and_python_targets():
+    specs = tool_specs()
+    optional_counts = {}
+    for spec in specs:
+        schema = spec["input_schema"]
+        assert schema["additionalProperties"] is False
+        required = schema["required"]
+        assert set(required) <= set(schema["properties"])
+        function = (Memory.store_correction if spec["name"] == "remember_correction"
+                    else graph_tools.TOOLS[spec["name"]])
+        python_parameters = inspect.signature(function).parameters
+        assert set(required) <= set(python_parameters)
+        optional_counts[spec["name"]] = len(set(schema["properties"]) - set(required))
+    assert sum(optional_counts.values()) <= 20
 
 
 def _result(tool, params, nodes=(), edges=(), rows=()):

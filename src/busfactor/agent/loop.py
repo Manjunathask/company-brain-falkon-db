@@ -46,10 +46,10 @@ def tool_specs() -> list[dict]:
     for name in TOOL_ORDER:
         function = graph_tools.TOOLS.get(name)
         description = function.__doc__ if function else "Store a user's correction in their memory graph; this does not modify delta."
-        props = {key: {"type": kind} for key, kind in PARAMS[name].items()}
+        props = {key: {"type": PARAMS[name][key]} for key in graph_tools.LLM_TOOL_PARAMS[name]}
         specs.append({"name": name, "description": description,
                       "input_schema": {"type":"object", "properties":props,
-                                       "required":REQUIRED.get(name, []), "additionalProperties":False},
+                                       "required":graph_tools.LLM_TOOL_REQUIRED.get(name, []), "additionalProperties":False},
                       "strict": True})
     return specs
 

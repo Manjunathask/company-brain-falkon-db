@@ -200,6 +200,39 @@ def find_entity(text: str, limit: int = 20) -> dict:
 
 TOOLS = {"bus_factor":bus_factor,"bus_factor_component":bus_factor_component,"departure_impact":departure_impact,"departure_files":departure_files,"orphaned_decisions":orphaned_decisions,"decision_share":decision_share,"successor":successor,"bridges":bridges,"groups":groups,"simulate_departure":simulate_departure,"decision_trace":decision_trace,"why_not":why_not,"drift":drift,"declared_vs_actual":declared_vs_actual,"find_entity":find_entity}
 
+# Only expose arguments that change what question a graph tool answers. Tuning
+# arguments remain in the Python functions for the CLI and direct API callers.
+LLM_TOOL_PARAMS = {
+    "bus_factor": [],
+    "bus_factor_component": [],
+    "departure_impact": ["login", "componentPrefix"],
+    "departure_files": ["login", "componentPrefix"],
+    "orphaned_decisions": ["login", "minConfidence"],
+    "decision_share": ["login", "minConfidence"],
+    "successor": ["login", "component"],
+    "simulate_departure": ["login"],
+    "bridges": ["limit"],
+    "groups": [],
+    "decision_trace": ["path"],
+    "why_not": ["slug"],
+    "drift": ["minConfidence"],
+    "declared_vs_actual": [],
+    "find_entity": ["text"],
+    "remember_correction": ["key", "text"],
+}
+LLM_TOOL_REQUIRED = {
+    "departure_impact": ["login"],
+    "departure_files": ["login"],
+    "orphaned_decisions": ["login"],
+    "decision_share": ["login"],
+    "successor": ["login", "component"],
+    "simulate_departure": ["login"],
+    "bridges": ["limit"],
+    "decision_trace": ["path"],
+    "why_not": ["slug"],
+    "remember_correction": ["key", "text"],
+}
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run a Bus Factor graph tool")
     parser.add_argument("tool", choices=TOOLS)
