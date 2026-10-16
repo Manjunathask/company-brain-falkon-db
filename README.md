@@ -30,6 +30,14 @@ The graph model and the Cypher query rationale are documented in [docs/PLAN.md](
 
 A Component is a finer-grained code area beneath a Module, assigned from source package paths or the first two directory segments for nested paths; file-only paths are grouped under a `(files)` bucket and test resources under `(test-resources)`. It exists to reveal concentrated expertise and orphaned files inside large modules such as `spark`.
 
+## Agent
+
+Ask a graph question with `uv run python -m busfactor.agent ask "What if huan233usc leaves?" --user <github-login>`. Configure `AGENT_PROVIDER=anthropic` (default) with `ANTHROPIC_API_KEY`; `AGENT_MODEL` defaults to `claude-sonnet-5-5` and `AGENT_EFFORT` to `medium`. Set `AGENT_PROVIDER=scripted` and `AGENT_SCRIPT` to a JSON list of steps for deterministic, no-network runs. The loop calls FalkorDB tools and returns the tool trail and merged graph evidence with the answer.
+
+## Memory (Track 02)
+
+Each user has a separate `mem_<login>` FalkorDB graph. Questions are recorded as session episodes linked to the Delta entities the graph tools touched, and explicit user corrections are stored with their source. Later sessions recall related questions and corrections, then query the Delta graph for changes since the last time an entity was discussed; memory never edits the Delta graph.
+
 ## Built with AI assistance
 
 Claude Code (reviewer/orchestrator) and OpenAI Codex (implementation) were used. Their task briefs

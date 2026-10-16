@@ -56,7 +56,7 @@ Build:
      orphaned_decisions + successor for "what if X leaves", and to say plainly when the graph has no evidence.
      Keep it short and specific; no ALL-CAPS rules.
 3. Memory graph per user, `mem_<login>` (PLAN.md query 13), in new query files numbered after WP6's last
-   query (WP6 used 13 for find_entity, so use 14, 14b, 14c, 14d):
+   query (WP6 used 13 for find_entity, so use 14, 14b, 14c, 14d). WP6b also added the tool decision_share (07b); include it in the system prompt guidance for "what if X leaves"):
    14_mem_record_episode   MERGE Session; CREATE Question {text, ts, answer, tools}; ABOUT -> Entity {key}
    14b_mem_store_correction  Correction {text, ts, source} -CORRECTS-> Entity
    14c_mem_recall          for a list of entity keys (or the user's last 5 questions when no keys yet):

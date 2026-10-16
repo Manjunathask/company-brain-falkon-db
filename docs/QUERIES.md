@@ -2,6 +2,38 @@
 
 One entry per query file. Parameters are passed by the Python tool registry; timestamps are epoch milliseconds.
 
+## `14_mem_record_episode.cypher`
+
+**What it answers:** save a question and answer in a user's memory graph, linked to graph entities it touched.
+
+**Parameters:** $sessionId, $text, $ts, $answer, $tools, and $entityKeys.
+
+It merges the session and creates one Question per ask. Empty entity lists still record the episode.
+
+## `14b_mem_store_correction.cypher`
+
+**What it answers:** store a user-provided correction against a stable entity key.
+
+**Parameters:** $key, $text, $ts, and $source.
+
+The correction is a separate node with provenance and cannot modify the `delta` graph.
+
+## `14c_mem_recall.cypher`
+
+**What it answers:** retrieve questions and corrections for explicit entity keys, or the latest five episodes when no keys are supplied.
+
+**Parameters:** $keys and $limit.
+
+The query stays within one user's memory graph; Python joins each returned entity key to `delta` for change checks.
+
+## `14d_changed_since.cypher`
+
+**What it answers:** list commits and PRs connected to a person, Component, Module, or Decision since a timestamp.
+
+**Parameters:** $kind, $key, and $since (epoch milliseconds).
+
+All traversals run on the `delta` graph and return a zero-count row when no newer evidence exists.
+
 ## `00_counts.cypher`
 
 **What it answers:** report total node and relationship counts for a graph.
