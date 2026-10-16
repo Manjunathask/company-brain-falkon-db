@@ -1,0 +1,752 @@
+[
+  {
+    "model": "claude-sonnet-5-5",
+    "effort": "medium",
+    "question": "What does the project lose if scottsand-db leaves?",
+    "seconds": 15.9,
+    "error": null,
+    "answer": "If scottsand-db leaves, the biggest losses are in the Kernel code. The graph shows 29 Components where they have commit expertise. The `simulate_departure` call failed with \"Invalid graph operation on empty key\", so I have no centrality or collaboration-split results.\n\n**Components left with no active expert (ORPHANED)**\n- `kernel/kernel-api/metrics`: 7 of their commits.\n- `kernel/kernel-defaults/(test-resources)`: 6 commits.\n- `kernel/kernel-api/(test-resources)`: 1 commit.\n- `kernel/kernel-api/statistics`: 1 commit.\n- `kernel/unitycatalog/(test-resources)`: 1 commit.\n\n**Components left with one expert (AT RISK)**\n- `kernel/kernel-api/snapshot`: 31 commits. allisonport-db would be the only expert left.\n- `kernel/kernel-api/commit`: 21 commits. allisonport-db would be the only expert left.\n- `kernel/kernel-api/catalogManaged`: 10 commits. allisonport-db would be the only expert left.\n- `kernel/kernel-defaults/catalogManaged`: 7 commits. allisonport-db would be the only expert left.\n- `kernel/kernel-api/tablefeatures`: 8 commits. richardc-db would be the only expert left.\n- `kernel/kernel-benchmarks/(test-resources)` (2 commits) and `kernel/kernel-benchmarks/benchmarks` (1 commit): oussamasaoudi would be the only expert left.\n- `flink/(test-resources)`: 1 commit. harperjiang would be the only expert left.\n\n**Components that stay covered**\n- The largest are `kernel/kernel-api/(core)` (53 commits, 12 experts left) and `kernel/kernel-defaults/(core)` (40 commits, 12 experts left).\n- Others include `kernel/kernel-api/test` (24 commits), `kernel/kernel-defaults/utils` (15), `kernel/kernel-api/util` (14), `kernel/kernel-api/replay` (11) and `root` (10).\n\n**Files only they edit**\n`departure_files` lists 10 Components that contain files no other active person edited:\n- `kernel/unitycatalog/unitycatalog`: 9 of their 22 files. Examples are the `UcCommitTelemetry.java` and `UcLoadSnapshotTelemetry.java` telemetry classes.\n- `kernel/kernel-api/metrics`: 6 of 7 files. Examples are `Timer.java`, `SnapshotReportImpl.java` and `ScanReportImpl.java`.\n- `kernel/kernel-defaults/(core)`: 6 of 11 files, mostly test suites such as `DeltaTableWriteWithCrcSuite` and `CommitMetadataE2ESuite`.\n- `kernel/kernel-api/commit`: all 3 of their files, including `CommitMetadata.java` and `CommitFailedException.java`.\n- `kernel/kernel-api/util`: 3 of 5 files.\n- `kernel/kernel-defaults/(test-resources)`: all 3 of their files, including the `catalog-owned-preview` resources.\n- Single files in `kernel/kernel-api/(core)` (`CreateTableTransactionBuilderImpl.java`), `kernel/kernel-api/catalogManaged`, `kernel/kernel-api/(test-resources)` and `kernel/unitycatalog/(test-resources)`.\n\n**Decisions**\n- `orphaned_decisions` returned no decisions where they are the only active participant.\n- `decision_share` returned one decision, \"Catalog-Managed Tables\" (accepted). They opened 43 of its 88 implementing PRs, about 49%.\n- Other active openers on that decision include xzhseh (10 PRs), yili-db (4), lukasrupprecht (2), murali-db (2) and ctring (2). Three more openers are truncated in the output.\n- This share counts only PRs linked to the decision. I did not check the confidence of those links.\n\n**Summary**\nKnowledge in metrics, catalog-managed, commit and snapshot, and in the Unity Catalog telemetry files, would be concentrated in zero or one remaining person. The Catalog-Managed Tables decision would still have other active contributors.",
+    "stop": "end",
+    "tools": [
+      [
+        "simulate_departure",
+        {
+          "login": "scottsand-db"
+        },
+        0
+      ],
+      [
+        "departure_impact",
+        {
+          "login": "scottsand-db"
+        },
+        29
+      ],
+      [
+        "departure_files",
+        {
+          "login": "scottsand-db"
+        },
+        10
+      ],
+      [
+        "orphaned_decisions",
+        {
+          "login": "scottsand-db"
+        },
+        0
+      ],
+      [
+        "decision_share",
+        {
+          "login": "scottsand-db"
+        },
+        1
+      ]
+    ],
+    "usage": [
+      {
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 2323,
+        "fallback_credit": null,
+        "inference_geo": "global",
+        "input_tokens": 108,
+        "iterations": [
+          {
+            "cache_creation": {
+              "ephemeral_1h_input_tokens": 0,
+              "ephemeral_5m_input_tokens": 0
+            },
+            "cache_creation_input_tokens": 0,
+            "cache_read_input_tokens": 2323,
+            "input_tokens": 108,
+            "model": null,
+            "output_tokens": 260,
+            "type": "message"
+          }
+        ],
+        "output_tokens": 260,
+        "output_tokens_details": {
+          "thinking_tokens": 0
+        },
+        "server_tool_use": null,
+        "service_tier": "standard",
+        "speed": "standard"
+      },
+      {
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 2323,
+        "fallback_credit": null,
+        "inference_geo": "global",
+        "input_tokens": 5083,
+        "iterations": [
+          {
+            "cache_creation": {
+              "ephemeral_1h_input_tokens": 0,
+              "ephemeral_5m_input_tokens": 0
+            },
+            "cache_creation_input_tokens": 0,
+            "cache_read_input_tokens": 2323,
+            "input_tokens": 5083,
+            "model": null,
+            "output_tokens": 1474,
+            "type": "message"
+          }
+        ],
+        "output_tokens": 1474,
+        "output_tokens_details": {
+          "thinking_tokens": 0
+        },
+        "server_tool_use": null,
+        "service_tier": "standard",
+        "speed": "standard"
+      }
+    ],
+    "graph": {
+      "nodes": 217,
+      "edges": 468
+    }
+  },
+  {
+    "model": "claude-sonnet-5-5",
+    "effort": "medium",
+    "question": "If huan233usc left, who should take over their kernel-spark work?",
+    "seconds": 18.9,
+    "error": null,
+    "answer": "The graph has no `kernel-spark/*` components or files for huan233usc. Successor queries on `kernel-spark/(core)`, `kernel-spark/read` and `kernel-spark/catalog` returned 0 rows. I'm treating the Kernel-based Spark connector under `spark/v2` and `spark-unified` as the closest match. That mapping is my assumption, not something the graph states.\n\n**What huan233usc would leave behind there**\n- `spark/v2/read`: 15 files touched, 5 of them orphaned. These include `DeltaParquetFileFormatV2.java` and the deletion-vector files `DeletionVectorSchemaContext.java` and `DeletionVectorReadFunction.java`.\n- `spark/v2/utils`: 7 files touched, 2 of them orphaned. These are `CloseableIterator.java` and its test.\n- `spark/v2/(core)`: 1 orphaned file, `InternalRowTestUtils.java`.\n- `spark/v2/execution`: orphaned. `DeltaV2FilterTranslator.scala` is their only file there.\n- `spark-unified/(core)` and `spark-unified/(files)`: 1 orphaned file each, `ProtocolMetadataAdapterV2Suite.scala` and `spark-unified/README.md`.\n- `spark-unified/(core)` is rated at risk, with murali-db as the only expert left.\n\n**Suggested successors, ranked by shared files and then commit expertise**\n- **`spark/v2/read`:** murali-db is the strongest choice, sharing 8 of the 15 files and having 13 commits there. Next are seewishnew (4 files, 5 commits), hariuserx (4 files, 3 commits) and yyanyy (4 files, 1 commit).\n- **`spark/v2/utils`:** zikangh (3 of 7 files, 7 commits) and yyanyy (3 of 7 files, 4 commits). porridgeswim has 2 files and 9 commits.\n- **`spark-unified`:** murali-db for `(core)`, since they are the only expert left there. sotikoug83, seewishnew and haosun1993 remain for `spark-unified/v2`.\n\n**Recommendation:** murali-db is the best single choice, because they appear across read, core, sql and catalog. Pair them with zikangh for the utils and read code. I'd also review the orphaned deletion-vector and `CloseableIterator` files first, since nobody else has edited them.",
+    "stop": "end",
+    "tools": [
+      [
+        "find_entity",
+        {
+          "text": "huan233usc"
+        },
+        1
+      ],
+      [
+        "find_entity",
+        {
+          "text": "kernel-spark",
+          "limit": 20
+        },
+        10
+      ],
+      [
+        "departure_impact",
+        {
+          "login": "huan233usc"
+        },
+        48
+      ],
+      [
+        "successor",
+        {
+          "login": "huan233usc",
+          "component": "kernel-spark/(core)"
+        },
+        0
+      ],
+      [
+        "successor",
+        {
+          "login": "huan233usc",
+          "component": "kernel-spark/read"
+        },
+        0
+      ],
+      [
+        "successor",
+        {
+          "login": "huan233usc",
+          "component": "kernel-spark/catalog"
+        },
+        0
+      ],
+      [
+        "departure_files",
+        {
+          "login": "huan233usc"
+        },
+        17
+      ],
+      [
+        "successor",
+        {
+          "login": "huan233usc",
+          "component": "spark/v2/read"
+        },
+        5
+      ],
+      [
+        "successor",
+        {
+          "login": "huan233usc",
+          "component": "spark/v2/utils"
+        },
+        5
+      ]
+    ],
+    "usage": [
+      {
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 2323,
+        "fallback_credit": null,
+        "inference_geo": "global",
+        "input_tokens": 4072,
+        "iterations": [
+          {
+            "cache_creation": {
+              "ephemeral_1h_input_tokens": 0,
+              "ephemeral_5m_input_tokens": 0
+            },
+            "cache_creation_input_tokens": 0,
+            "cache_read_input_tokens": 2323,
+            "input_tokens": 4072,
+            "model": null,
+            "output_tokens": 174,
+            "type": "message"
+          }
+        ],
+        "output_tokens": 174,
+        "output_tokens_details": {
+          "thinking_tokens": 0
+        },
+        "server_tool_use": null,
+        "service_tier": "standard",
+        "speed": "standard"
+      },
+      {
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 2323,
+        "fallback_credit": null,
+        "inference_geo": "global",
+        "input_tokens": 8124,
+        "iterations": [
+          {
+            "cache_creation": {
+              "ephemeral_1h_input_tokens": 0,
+              "ephemeral_5m_input_tokens": 0
+            },
+            "cache_creation_input_tokens": 0,
+            "cache_read_input_tokens": 2323,
+            "input_tokens": 8124,
+            "model": null,
+            "output_tokens": 298,
+            "type": "message"
+          }
+        ],
+        "output_tokens": 298,
+        "output_tokens_details": {
+          "thinking_tokens": 65
+        },
+        "server_tool_use": null,
+        "service_tier": "standard",
+        "speed": "standard"
+      },
+      {
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 2323,
+        "fallback_credit": null,
+        "inference_geo": "global",
+        "input_tokens": 8569,
+        "iterations": [
+          {
+            "cache_creation": {
+              "ephemeral_1h_input_tokens": 0,
+              "ephemeral_5m_input_tokens": 0
+            },
+            "cache_creation_input_tokens": 0,
+            "cache_read_input_tokens": 2323,
+            "input_tokens": 8569,
+            "model": null,
+            "output_tokens": 101,
+            "type": "message"
+          }
+        ],
+        "output_tokens": 101,
+        "output_tokens_details": {
+          "thinking_tokens": 48
+        },
+        "server_tool_use": null,
+        "service_tier": "standard",
+        "speed": "standard"
+      },
+      {
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 2323,
+        "fallback_credit": null,
+        "inference_geo": "global",
+        "input_tokens": 10903,
+        "iterations": [
+          {
+            "cache_creation": {
+              "ephemeral_1h_input_tokens": 0,
+              "ephemeral_5m_input_tokens": 0
+            },
+            "cache_creation_input_tokens": 0,
+            "cache_read_input_tokens": 2323,
+            "input_tokens": 10903,
+            "model": null,
+            "output_tokens": 214,
+            "type": "message"
+          }
+        ],
+        "output_tokens": 214,
+        "output_tokens_details": {
+          "thinking_tokens": 61
+        },
+        "server_tool_use": null,
+        "service_tier": "standard",
+        "speed": "standard"
+      },
+      {
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 2323,
+        "fallback_credit": null,
+        "inference_geo": "global",
+        "input_tokens": 11636,
+        "iterations": [
+          {
+            "cache_creation": {
+              "ephemeral_1h_input_tokens": 0,
+              "ephemeral_5m_input_tokens": 0
+            },
+            "cache_creation_input_tokens": 0,
+            "cache_read_input_tokens": 2323,
+            "input_tokens": 11636,
+            "model": null,
+            "output_tokens": 826,
+            "type": "message"
+          }
+        ],
+        "output_tokens": 826,
+        "output_tokens_details": {
+          "thinking_tokens": 0
+        },
+        "server_tool_use": null,
+        "service_tier": "standard",
+        "speed": "standard"
+      }
+    ],
+    "graph": {
+      "nodes": 189,
+      "edges": 421
+    }
+  },
+  {
+    "model": "claude-sonnet-5-5",
+    "effort": "medium",
+    "question": "Why does the IcebergCompat metadata validator in Delta Kernel work the way it does? Trace it to a decision.",
+    "seconds": 15.0,
+    "error": null,
+    "answer": "The graph traces this validator to a decision only through weak links, so I can't give you a confirmed reason for how it works.\n\n**File:** `kernel/kernel-api/src/main/java/io/delta/kernel/internal/icebergcompat/IcebergCompatMetadataValidatorAndUpdater.java`\n\n**Evidence:**\n- `decision_trace` returned 4 paths. Each one runs file → commit → PR → decision → RFC issue.\n- All 4 are **low confidence**, and each was linked only by `title-keyword`. That means a PR title matched a keyword, not an explicit issue or RFC reference.\n- The paths are dated from March 2025 (1742445902000) to September 2025 (1758296593000).\n- The tool returned the nodes as internal IDs without names. I can't tell you the PR numbers, the commit authors, or which decisions the paths end at. The paths end at two distinct decision nodes, 6922 and 6923.\n\n**Candidate decision:** The graph has a decision called `iceberg-compat-v3` (IcebergCompatV3). Its name matches the topic, but I can't confirm it is the decision at the end of these paths.\n\n**What's missing:**\n- There is no high-confidence link, such as an explicit issue or RFC reference, between this file and any decision.\n- `why_not` for `iceberg-compat-v3` returned nothing. The graph has no record that it was rejected or superseded, and no rationale text.\n\nThe graph can't tell you why the validator works the way it does. The commits and PRs behind these four paths are the best place to look for the rationale.",
+    "stop": "end",
+    "tools": [
+      [
+        "find_entity",
+        {
+          "text": "IcebergCompat",
+          "limit": 15
+        },
+        2
+      ],
+      [
+        "find_entity",
+        {
+          "text": "IcebergCompatMetadataValidatorAndUpdater.java"
+        },
+        1
+      ],
+      [
+        "why_not",
+        {
+          "slug": "iceberg-compat-v3"
+        },
+        0
+      ],
+      [
+        "decision_trace",
+        {
+          "path": "kernel/kernel-api/src/main/java/io/delta/kernel/internal/icebergcompat/IcebergCompatMetadataValidatorAndUpdater.java",
+          "limit": 15
+        },
+        4
+      ]
+    ],
+    "usage": [
+      {
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 2323,
+        "fallback_credit": null,
+        "inference_geo": "global",
+        "input_tokens": 10827,
+        "iterations": [
+          {
+            "cache_creation": {
+              "ephemeral_1h_input_tokens": 0,
+              "ephemeral_5m_input_tokens": 0
+            },
+            "cache_creation_input_tokens": 0,
+            "cache_read_input_tokens": 2323,
+            "input_tokens": 10827,
+            "model": null,
+            "output_tokens": 76,
+            "type": "message"
+          }
+        ],
+        "output_tokens": 76,
+        "output_tokens_details": {
+          "thinking_tokens": 0
+        },
+        "server_tool_use": null,
+        "service_tier": "standard",
+        "speed": "standard"
+      },
+      {
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 2323,
+        "fallback_credit": null,
+        "inference_geo": "global",
+        "input_tokens": 11039,
+        "iterations": [
+          {
+            "cache_creation": {
+              "ephemeral_1h_input_tokens": 0,
+              "ephemeral_5m_input_tokens": 0
+            },
+            "cache_creation_input_tokens": 0,
+            "cache_read_input_tokens": 2323,
+            "input_tokens": 11039,
+            "model": null,
+            "output_tokens": 137,
+            "type": "message"
+          }
+        ],
+        "output_tokens": 137,
+        "output_tokens_details": {
+          "thinking_tokens": 0
+        },
+        "server_tool_use": null,
+        "service_tier": "standard",
+        "speed": "standard"
+      },
+      {
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 2323,
+        "fallback_credit": null,
+        "inference_geo": "global",
+        "input_tokens": 11425,
+        "iterations": [
+          {
+            "cache_creation": {
+              "ephemeral_1h_input_tokens": 0,
+              "ephemeral_5m_input_tokens": 0
+            },
+            "cache_creation_input_tokens": 0,
+            "cache_read_input_tokens": 2323,
+            "input_tokens": 11425,
+            "model": null,
+            "output_tokens": 128,
+            "type": "message"
+          }
+        ],
+        "output_tokens": 128,
+        "output_tokens_details": {
+          "thinking_tokens": 0
+        },
+        "server_tool_use": null,
+        "service_tier": "standard",
+        "speed": "standard"
+      },
+      {
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 2323,
+        "fallback_credit": null,
+        "inference_geo": "global",
+        "input_tokens": 11916,
+        "iterations": [
+          {
+            "cache_creation": {
+              "ephemeral_1h_input_tokens": 0,
+              "ephemeral_5m_input_tokens": 0
+            },
+            "cache_creation_input_tokens": 0,
+            "cache_read_input_tokens": 2323,
+            "input_tokens": 11916,
+            "model": null,
+            "output_tokens": 576,
+            "type": "message"
+          }
+        ],
+        "output_tokens": 576,
+        "output_tokens_details": {
+          "thinking_tokens": 55
+        },
+        "server_tool_use": null,
+        "service_tier": "standard",
+        "speed": "standard"
+      }
+    ],
+    "graph": {
+      "nodes": 14,
+      "edges": 14
+    }
+  },
+  {
+    "model": "claude-sonnet-5-5",
+    "effort": "medium",
+    "question": "Why was Managed Commits rejected, and what replaced it?",
+    "seconds": 10.6,
+    "error": null,
+    "answer": "**Managed Commits** (`decision:managed-commits`) was rejected and superseded by **Catalog-Managed Tables**. The graph links the supersession to **PR #4382** and discussion **#4381**.\n\n**Why it was rejected:** The graph doesn't record a stated reason. It has no rationale text, only the supersession link and its evidence, PR #4382. For the reasoning, you'd need to read PR #4382 and discussion #4381 directly.\n\n**Who to ask:** The graph lists 38 people, and the first 10 shown are harperjiang, huan233usc, dhruvarya-db, prakharjain09, timothyw553, ctring, zhenlineo, porridgeswim, murali-db and felipepessoto. The other 28 weren't returned.\n\nI haven't traced the `catalog-managed` decision itself. I can do that to see its implementing PRs and who is still active on it.",
+    "stop": "end",
+    "tools": [
+      [
+        "find_entity",
+        {
+          "text": "Managed Commits"
+        },
+        1
+      ],
+      [
+        "why_not",
+        {
+          "slug": "managed-commits"
+        },
+        1
+      ]
+    ],
+    "usage": [
+      {
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 2323,
+        "fallback_credit": null,
+        "inference_geo": "global",
+        "input_tokens": 11153,
+        "iterations": [
+          {
+            "cache_creation": {
+              "ephemeral_1h_input_tokens": 0,
+              "ephemeral_5m_input_tokens": 0
+            },
+            "cache_creation_input_tokens": 0,
+            "cache_read_input_tokens": 2323,
+            "input_tokens": 11153,
+            "model": null,
+            "output_tokens": 53,
+            "type": "message"
+          }
+        ],
+        "output_tokens": 53,
+        "output_tokens_details": {
+          "thinking_tokens": 0
+        },
+        "server_tool_use": null,
+        "service_tier": "standard",
+        "speed": "standard"
+      },
+      {
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 2323,
+        "fallback_credit": null,
+        "inference_geo": "global",
+        "input_tokens": 11275,
+        "iterations": [
+          {
+            "cache_creation": {
+              "ephemeral_1h_input_tokens": 0,
+              "ephemeral_5m_input_tokens": 0
+            },
+            "cache_creation_input_tokens": 0,
+            "cache_read_input_tokens": 2323,
+            "input_tokens": 11275,
+            "model": null,
+            "output_tokens": 52,
+            "type": "message"
+          }
+        ],
+        "output_tokens": 52,
+        "output_tokens_details": {
+          "thinking_tokens": 0
+        },
+        "server_tool_use": null,
+        "service_tier": "standard",
+        "speed": "standard"
+      },
+      {
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 2323,
+        "fallback_credit": null,
+        "inference_geo": "global",
+        "input_tokens": 11510,
+        "iterations": [
+          {
+            "cache_creation": {
+              "ephemeral_1h_input_tokens": 0,
+              "ephemeral_5m_input_tokens": 0
+            },
+            "cache_creation_input_tokens": 0,
+            "cache_read_input_tokens": 2323,
+            "input_tokens": 11510,
+            "model": null,
+            "output_tokens": 297,
+            "type": "message"
+          }
+        ],
+        "output_tokens": 297,
+        "output_tokens_details": {
+          "thinking_tokens": 0
+        },
+        "server_tool_use": null,
+        "service_tier": "standard",
+        "speed": "standard"
+      }
+    ],
+    "graph": {
+      "nodes": 41,
+      "edges": 40
+    }
+  },
+  {
+    "model": "claude-sonnet-5-5",
+    "effort": "medium",
+    "question": "Where do the declared CODEOWNERS differ from the people actually doing the work?",
+    "seconds": 8.9,
+    "error": null,
+    "answer": "Only 7 of the 28 modules have declared CODEOWNERS. The rest have no declared owners, so there is nothing to compare there. Of the 7, only `project` has any declared owners in its top 3 recent committers.\n\n**Modules where declared owners are missing from the top 3 recent committers**\n- **spark**\n  - Declared: huan233usc, timothyw553, murali-db, tdas, raveeram-db.\n  - Actual top 3: ctring, murali-db, porridgeswim.\n  - Only murali-db appears in both. huan233usc, timothyw553, tdas and raveeram-db are not in the top 3.\n- **spark-unified**\n  - Declared: the same five people as spark.\n  - Actual top 3: porridgeswim, zikangh, haosun1993.\n  - There is no overlap, so none of the five declared owners are in the top 3.\n- **build**\n  - Declared: huan233usc, tdas.\n  - Actual: allisonport-db is the only recent committer listed.\n  - Neither declared owner appears.\n- **python**\n  - Declared: huan233usc, tdas.\n  - Actual top 3: allisonport-db, johanl-db, tdas.\n  - tdas matches. huan233usc is not in the top 3.\n- **root**\n  - Declared: huan233usc, tdas.\n  - Actual top 3: timothyw553, huan233usc, openinx.\n  - huan233usc matches. tdas is not in the top 3.\n- **project**\n  - Declared: yili-db, openinx, tdas.\n  - Actual top 3: yili-db, timothyw553, openinx.\n  - yili-db and openinx match. tdas is not in the top 3.\n\n**Patterns**\n- tdas is declared on 6 modules (build, project, python, root, spark, spark-unified). He is in the top 3 only for python.\n- huan233usc is declared on 6 modules. He is in the top 3 only for root. He is not in the top 3 for build, python, spark or spark-unified.\n- No module has a declared-owner list that matches the actual top 3.\n\n**Active modules with no declared owners**\nSome modules have active committers but no declared owners:\n- kernel: scottsand-db, allisonport-db, huan233usc\n- flink: harperjiang, timothyw553, jasonschen3\n- iceberg: chengjix, harperjiang, murali-db\n- storage: timothyw553, yili-db, chengjix\n- docs: jakebellacera, longvu-db, openinx\n- sharing: littlegrasscao, stevenyuser, zhu-tom\n- protocol_rfcs: anoopj, harperjiang, philplato\n\nThe tool lists no recent commit experts for kernel-spark, even though it is a module the user has asked about before.",
+    "stop": "end",
+    "tools": [
+      [
+        "declared_vs_actual",
+        {},
+        28
+      ]
+    ],
+    "usage": [
+      {
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 2323,
+        "fallback_credit": null,
+        "inference_geo": "global",
+        "input_tokens": 11436,
+        "iterations": [
+          {
+            "cache_creation": {
+              "ephemeral_1h_input_tokens": 0,
+              "ephemeral_5m_input_tokens": 0
+            },
+            "cache_creation_input_tokens": 0,
+            "cache_read_input_tokens": 2323,
+            "input_tokens": 11436,
+            "model": null,
+            "output_tokens": 31,
+            "type": "message"
+          }
+        ],
+        "output_tokens": 31,
+        "output_tokens_details": {
+          "thinking_tokens": 0
+        },
+        "server_tool_use": null,
+        "service_tier": "standard",
+        "speed": "standard"
+      },
+      {
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 2323,
+        "fallback_credit": null,
+        "inference_geo": "global",
+        "input_tokens": 13167,
+        "iterations": [
+          {
+            "cache_creation": {
+              "ephemeral_1h_input_tokens": 0,
+              "ephemeral_5m_input_tokens": 0
+            },
+            "cache_creation_input_tokens": 0,
+            "cache_read_input_tokens": 2323,
+            "input_tokens": 13167,
+            "model": null,
+            "output_tokens": 912,
+            "type": "message"
+          }
+        ],
+        "output_tokens": 912,
+        "output_tokens_details": {
+          "thinking_tokens": 0
+        },
+        "server_tool_use": null,
+        "service_tier": "standard",
+        "speed": "standard"
+      }
+    ],
+    "graph": {
+      "nodes": 49,
+      "edges": 72
+    }
+  }
+]

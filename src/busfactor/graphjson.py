@@ -9,7 +9,9 @@ def node_dict(node: Any) -> dict | None:
         return None
     props = getattr(node, "properties", {}) or {}
     labels = getattr(node, "labels", ()) or ()
-    label = sorted(labels)[0] if labels else "Node"
+    label_order = ("Person", "Component", "Module", "File", "Commit", "PR", "Decision", "Issue")
+    label = next((candidate for candidate in label_order if candidate in labels),
+                 sorted(labels)[0] if labels else "Node")
     identity = getattr(node, "id", None)
     key_name = {"Person": "login", "Module": "name", "Component": "name", "Decision": "slug", "File": "path", "PR": "number", "Issue": "number", "Commit": "sha"}.get(label)
     return {"id": identity, "label": label, "key": props.get(key_name) if key_name else None, "props": dict(props)}

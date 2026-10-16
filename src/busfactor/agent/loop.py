@@ -208,4 +208,4 @@ def ask(question: str, user: str, session_id: str | None = None, llm=None, *, me
         answer = "I could not establish an answer because no successful tool returned FalkorDB evidence."
     memory.record_episode(session_id, question, answer, [item["tool"] for item in trail], sorted(entities))
     return {"answer":answer, "tool_calls":trail, "graph":evidence, "entities":sorted(entities),
-            "stop_reason":stop_reason, "usage":usages}
+            "stop_reason":stop_reason, "usage":usages, "memory_recall":recalled}
