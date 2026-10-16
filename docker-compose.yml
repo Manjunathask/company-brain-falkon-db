@@ -1,0 +1,15 @@
+services:
+  falkordb:
+    image: falkordb/falkordb:v4.22.0
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+      - "3000:3000"
+    environment:
+      FALKORDB_ARGS: ${FALKORDB_ARGS:-}
+    volumes:
+      # The data path is confirmed by FalkorDB docs; persistence across restart still needs checking.
+      - falkordb_data:/var/lib/falkordb/data
+
+volumes:
+  falkordb_data:
