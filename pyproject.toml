@@ -7,8 +7,10 @@ requires-python = ">=3.11"
 dependencies = [
     "anthropic>=1.15.0",
     "falkordb>=1.8.0",
+    "fastapi>=0.143.3",
     "httpx>=0.28.1",
     "python-dotenv>=1.2.4",
+    "uvicorn>=0.54.0",
 ]
 
 [build-system]
