@@ -26,6 +26,10 @@ link confidence so later queries can filter to high-confidence participation.
 
 The graph model and the Cypher query rationale are documented in [docs/PLAN.md](docs/PLAN.md).
 
+## Graph model
+
+A Component is a finer-grained code area beneath a Module, assigned from source package paths or the first two directory segments for nested paths; file-only paths are grouped under a `(files)` bucket and test resources under `(test-resources)`. It exists to reveal concentrated expertise and orphaned files inside large modules such as `spark`.
+
 ## Built with AI assistance
 
 Claude Code (reviewer/orchestrator) and OpenAI Codex (implementation) were used. Their task briefs

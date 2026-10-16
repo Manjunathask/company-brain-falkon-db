@@ -8,6 +8,7 @@ from redis.exceptions import RedisError, ResponseError
 
 from busfactor.db import create_indexes, load_query
 from busfactor.ingest.codeowners import parse_codeowners, rows_for_loading
+from busfactor.ingest.components import component_of
 
 
 pytestmark = pytest.mark.integration
@@ -54,6 +55,7 @@ def _count(graph, pattern: str) -> int:
 
 def _run_derives(graph) -> None:
     _run(graph, "03_derive_knows")
+    _run(graph, "03c_derive_knows_component")
     _run(graph, "03b_derive_last_seen", {"since": SINCE})
     _run(graph, "04_derive_works_with", {
         "since": SINCE,
@@ -121,6 +123,9 @@ def test_load_and_derive_queries_end_to_end(graph):
             ],
         },
     ]
+    for commit in commits:
+        for file in commit["files"]:
+            file["component"] = component_of(file["path"])
     _run(graph, "01_load_commits", {"rows": commits})
     # Replay confirms email collection and loaded nodes/edges are idempotent.
     _run(graph, "01_load_commits", {"rows": commits})
@@ -128,7 +133,18 @@ def test_load_and_derive_queries_end_to_end(graph):
     assert _count(graph, "(c:Commit)") == 5
     assert _count(graph, "(f:File)") == 4
     assert _count(graph, "(m:Module)") == 2
+    assert _count(graph, "(c:Component)") == 2
+    assert _count(graph, "(:File)-[:IN_COMPONENT]->(:Component)-[:IN_MODULE]->(:Module)") == 4
     assert _count(graph, "()-[t:TOUCHED]->()") == 15
+    graph.query(
+        "MATCH (f:File {path:'spark/A.scala'}) "
+        "MERGE (old:Component {name:'spark/stale-name'}) "
+        "MERGE (f)-[:IN_COMPONENT]->(old)"
+    )
+    _run(graph, "01_load_commits", {"rows": commits})
+    assert _count(graph, "(:File)-[:IN_COMPONENT]->(:Component)") == 4
+    _run(graph, "01f_cleanup_components")
+    assert _count(graph, "(c:Component {name:'spark/stale-name'})") == 0
     alice = graph.query("MATCH (p:Person {login:'alice'}) RETURN p.emails, p.bot").result_set[0]
     assert set(alice[0]) == {"alice-one@example.com", "alice-two@example.com"}
     assert alice[1] is False
@@ -184,9 +200,11 @@ def test_load_and_derive_queries_end_to_end(graph):
 
     decisions = [
         {"slug": "managed-commits", "title": "Managed Commits", "status": "rejected", "proposedOn": None,
-         "decidedOn": RECENT - 100, "issue": 500, "path": "protocol_rfcs/managed-commits.md", "module": "protocol_rfcs"},
+         "decidedOn": RECENT - 100, "issue": 500, "path": "protocol_rfcs/managed-commits.md", "module": "protocol_rfcs",
+         "component": component_of("protocol_rfcs/managed-commits.md")},
         {"slug": "catalog-managed", "title": "Catalog-Managed Tables", "status": "accepted", "proposedOn": None,
-         "decidedOn": RECENT - 50, "issue": 501, "path": "protocol_rfcs/catalog-managed.md", "module": "protocol_rfcs"},
+         "decidedOn": RECENT - 50, "issue": 501, "path": "protocol_rfcs/catalog-managed.md", "module": "protocol_rfcs",
+         "component": component_of("protocol_rfcs/catalog-managed.md")},
     ]
     _run(graph, "02_load_decisions", {"rows": decisions})
     _run(graph, "02b_superseded_by")
@@ -194,6 +212,7 @@ def test_load_and_derive_queries_end_to_end(graph):
     assert _count(graph, "(:Decision {slug:'managed-commits'})-[:TRACKED_IN]->(:Issue {number:500})") == 1
     assert _count(graph, "(:Decision {slug:'catalog-managed'})-[:DOCUMENTED_IN]->(:File {path:'protocol_rfcs/catalog-managed.md'})") == 1
     assert _count(graph, "(:File {path:'protocol_rfcs/catalog-managed.md'})-[:IN_MODULE]->(:Module {name:'protocol_rfcs'})") == 1
+    assert _count(graph, "(:File {path:'protocol_rfcs/catalog-managed.md'})-[:IN_COMPONENT]->(:Component {name:'protocol_rfcs/(files)'})") == 1
     superseded = graph.query(
         "MATCH (:Decision {slug:'managed-commits'})-[r:SUPERSEDED_BY]->(:Decision {slug:'catalog-managed'}) "
         "RETURN r.source"
@@ -260,6 +279,11 @@ def test_load_and_derive_queries_end_to_end(graph):
         "MATCH (:Person {login:'alice'})-[k:KNOWS]->(:Module {name:'spark'}) RETURN k.commits"
     ).result_set[0][0]
     assert knows == 2  # c-alice-1 touches two Spark files but is one distinct commit.
+    component_knows = graph.query(
+        "MATCH (:Person {login:'alice'})-[k:KNOWS]->(:Component {name:'spark/(files)'}) "
+        "RETURN k.commits"
+    ).result_set[0][0]
+    assert component_knows == 2
     active_reviewer = graph.query(
         "MATCH (p:Person {login:'revieweronly'}) RETURN p.lastSeen, p.lastCommit, p:Active"
     ).result_set[0]
@@ -282,3 +306,68 @@ def test_load_and_derive_queries_end_to_end(graph):
         "MATCH ()-[r]->() RETURN type(r), count(r) ORDER BY type(r)"
     ).result_set
     assert after == before
+
+
+def test_component_bus_factor_and_orphaned_file_queries(graph):
+    # A tiny expertise fixture: one person owns three of four component commits.
+    graph.query("""
+        MERGE (a:Person {login:'wp5gone'}) SET a.bot = false
+        MERGE (b:Person {login:'wp5peer'}) SET b.bot = false
+        MERGE (comp:Component {name:'spark/wp5-bus'})
+        MERGE (m:Module {name:'spark'}) MERGE (comp)-[:IN_MODULE]->(m)
+        WITH a, b, comp, m
+        UNWIND [{person:a, sha:'wp5-a1', ts:1800000000000},
+                {person:a, sha:'wp5-a2', ts:1799999999900},
+                {person:a, sha:'wp5-a3', ts:1799999999800},
+                {person:b, sha:'wp5-b1', ts:1799999999700}] AS row
+        WITH row.person AS person, row.sha AS sha, row.ts AS ts, comp, m
+        MERGE (person)-[:AUTHORED]->(commit:Commit {sha:sha})
+        SET commit.ts = ts
+        MERGE (file:File {path:'spark/src/main/scala/org/apache/spark/sql/delta/wp5/Bus.scala'})
+        MERGE (file)-[:IN_COMPONENT]->(comp)
+        MERGE (file)-[:IN_MODULE]->(m)
+        MERGE (commit)-[:TOUCHED]->(file)
+    """)
+    _run(graph, "03c_derive_knows_component")
+    row = graph.query(load_query("05b_bus_factor_component"), {
+        "since": SINCE, "minCommits": 1, "minTotal": 4,
+    }).result_set
+    answer = next(item for item in row if item[0] == "spark/wp5-bus")
+    assert answer[1] == 1
+    assert answer[4:6] == [2, 4]
+    filtered = graph.query(load_query("05b_bus_factor_component"), {
+        "since": SINCE, "minCommits": 1, "minTotal": 5,
+    }).result_set
+    assert not any(item[0] == "spark/wp5-bus" for item in filtered)
+    assert filtered[0][6] >= 1
+
+    # Only gone touched the first file; a peer covers the second; a bot's touch
+    # must not provide coverage for the third.
+    graph.query("""
+        MERGE (gone:Person {login:'wp5gone'}) SET gone.bot = false
+        MERGE (peer:Person {login:'wp5peer'}) SET peer.bot = false
+        MERGE (bot:Person {login:'wp5bot'}) SET bot.bot = true
+        MERGE (comp:Component {name:'spark/wp5-files'})
+        MERGE (m:Module {name:'spark'}) MERGE (comp)-[:IN_MODULE]->(m)
+        WITH gone, peer, bot, comp, m
+        UNWIND [{person:gone, sha:'wp5-file-gone', path:'spark/wp5/orphan.scala'},
+                {person:gone, sha:'wp5-file-shared-a', path:'spark/wp5/shared.scala'},
+                {person:peer, sha:'wp5-file-shared-b', path:'spark/wp5/shared.scala'},
+                {person:gone, sha:'wp5-file-bot-a', path:'spark/wp5/bot.scala'},
+                {person:bot, sha:'wp5-file-bot-b', path:'spark/wp5/bot.scala'}] AS row
+        WITH row.person AS person, row.sha AS sha, row.path AS path, comp, m
+        MERGE (person)-[:AUTHORED]->(commit:Commit {sha:sha})
+        SET commit.ts = 1800000000000
+        MERGE (file:File {path:path})
+        MERGE (file)-[:IN_COMPONENT]->(comp)
+        MERGE (file)-[:IN_MODULE]->(m)
+        MERGE (commit)-[:TOUCHED]->(file)
+    """)
+    _run(graph, "03b_derive_last_seen", {"since": SINCE})
+    rows = graph.query(load_query("06b_departure_files"), {
+        "login": "wp5gone", "since": SINCE,
+    }).result_set
+    files = next(item for item in rows if item[0] == "spark/wp5-files")
+    assert files[1] == 2
+    assert files[2] == 3
+    assert set(files[3]) == {"spark/wp5/orphan.scala", "spark/wp5/bot.scala"}

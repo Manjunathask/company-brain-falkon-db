@@ -22,6 +22,7 @@ def test_every_derive_query_file_is_registered():
     assert files == set(QUERY_NAMES) | {
         "04d_derive_implements_issue_ref",
         "04e_derive_implements_rfc_doc",
+        "03c_derive_knows_component",
     }
 
 

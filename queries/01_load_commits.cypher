@@ -1,6 +1,6 @@
-// Answers: load people, commits, touched files, and their modules from local git history.
-// Parameters: $rows is a batch of commit maps with author, authorEmail, authorHandle, authorBot, authorName, files, and commit fields.
-// Shape: UNWIND plus MERGE makes each batch safe to replay; PART_OF is deferred until PRs exist.
+// Answers: load people, commits, touched files, modules, and components from local git history.
+// Parameters: $rows is a batch of commit maps with author, authorEmail, authorHandle, authorBot, authorName, files, and commit fields; each file has module and component.
+// Shape: UNWIND plus MERGE makes each batch safe to replay; Module remains first-path-segment and Component adds finer-grained ownership.
 UNWIND $rows AS c
 MERGE (p:Person {login: c.author})
 SET p.emails = CASE
@@ -16,7 +16,14 @@ MERGE (p)-[:AUTHORED]->(k)
 WITH k, c
 UNWIND c.files AS f
 MERGE (fl:File {path: f.path})
+WITH k, c, f, fl
+OPTIONAL MATCH (fl)-[oldComponent:IN_COMPONENT]->(:Component)
+DELETE oldComponent
+WITH k, c, f, fl
 MERGE (m:Module {name: f.module})
 MERGE (fl)-[:IN_MODULE]->(m)
+MERGE (component:Component {name: f.component})
+MERGE (fl)-[:IN_COMPONENT]->(component)
+MERGE (component)-[:IN_MODULE]->(m)
 MERGE (k)-[t:TOUCHED]->(fl)
 SET t.added = f.added, t.deleted = f.deleted

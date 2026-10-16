@@ -11,6 +11,7 @@ from busfactor.db import get_graph, load_query
 
 QUERY_NAMES = (
     "03_derive_knows",
+    "03c_derive_knows_component",
     "03b_derive_last_seen",
     "04_derive_works_with",
     "04b_derive_participated_pr",
@@ -32,6 +33,7 @@ def build_query_params(since: int, min_shared: int, max_file_commits: int) -> di
     """Return the exact parameter maps passed to each derive query."""
     return {
         "03_derive_knows": {},
+        "03c_derive_knows_component": {},
         "03b_derive_last_seen": {"since": since},
         "04_derive_works_with": {
             "since": since,
@@ -52,6 +54,13 @@ def _print_sanity(graph) -> None:
     ).result_set
     for module, count in rows:
         print(f"  {module}: {count}")
+    print("Top components by KNOWS edges:")
+    rows = graph.query(
+        "MATCH (:Person)-[k:KNOWS]->(c:Component) "
+        "RETURN c.name, count(k) AS edges ORDER BY edges DESC, c.name LIMIT 10"
+    ).result_set
+    for component, count in rows:
+        print(f"  {component}: {count}")
 
     active = _scalar(graph, "MATCH (p:Person:Active) RETURN count(p)")
     print(f"Active people: {active}")

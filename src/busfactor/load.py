@@ -8,6 +8,7 @@ from redis.exceptions import RedisError
 
 from busfactor.db import ROOT, batched, create_indexes, get_graph, load_query
 from busfactor.ingest.codeowners import rows_for_loading
+from busfactor.ingest.components import component_of
 from busfactor.ingest.identity import is_bot, load_api_map, resolve_person_key
 from busfactor.ingest.github_api import references
 
@@ -39,20 +40,22 @@ def _run_rows(graph, query_name: str, rows: list[dict], label: str) -> None:
 def load_step(graph, step: str) -> None:
     if step == "indexes":
         create_indexes(graph)
-        print(f"indexes: 7 created or already present; {_counts(graph)}")
+        print(f"indexes: 8 created or already present; {_counts(graph)}")
     elif step == "commits":
         api_map = load_api_map()
         commits = read_rows("git_log.json")
         rows = []
         for commit in commits:
             row = dict(commit)
+            row["files"] = [dict(file, component=component_of(file["path"])) for file in commit["files"]]
             row["author"] = resolve_person_key(commit["authorEmail"], api_map)
             row["authorHandle"] = api_map.get(commit["authorEmail"])
             row["authorBot"] = is_bot(row["author"])
             rows.append(row)
         _run_rows(graph, "01_load_commits", rows, "commits")
     elif step == "decisions":
-        _run_rows(graph, "02_load_decisions", read_rows("rfcs.json"), "decisions")
+        rows = [dict(row, component=component_of(row["path"])) for row in read_rows("rfcs.json")]
+        _run_rows(graph, "02_load_decisions", rows, "decisions")
         graph.query(load_query("02b_superseded_by"))
         print(f"superseded_by: applied; {_counts(graph)}")
     elif step == "codeowners":
@@ -72,14 +75,17 @@ def load_step(graph, step: str) -> None:
             for issue in sorted(references(pr.get("body")))
         ]
         _run_rows(graph, "01e_link_references", rows, "references")
+    elif step == "components_cleanup":
+        graph.query(load_query("01f_cleanup_components"))
+        print(f"components_cleanup: removed unused components; {_counts(graph)}")
     else:
         raise ValueError(f"unknown load step: {step}")
 
 
 def main(argv: list[str] | None = None) -> int:
     args = list(sys.argv[1:] if argv is None else argv)
-    if len(args) != 1 or args[0] not in {"indexes", "commits", "decisions", "codeowners", "prs", "part_of", "issues", "references", "all"}:
-        print("Usage: python -m busfactor.load {indexes,commits,decisions,codeowners,prs,part_of,issues,references,all}", file=sys.stderr)
+    if len(args) != 1 or args[0] not in {"indexes", "commits", "decisions", "codeowners", "prs", "part_of", "issues", "references", "components_cleanup", "all"}:
+        print("Usage: python -m busfactor.load {indexes,commits,decisions,codeowners,prs,part_of,issues,references,components_cleanup,all}", file=sys.stderr)
         return 2
     try:
         graph = get_graph()
@@ -87,7 +93,7 @@ def main(argv: list[str] | None = None) -> int:
     except (RedisError, OSError, ConnectionError) as exc:
         print(f"FalkorDB is unreachable. Start it with 'docker compose up -d' and check FALKORDB_HOST/PORT: {exc}", file=sys.stderr)
         return 1
-    steps = ["indexes", "commits", "decisions", "codeowners", "prs", "part_of", "issues", "references"] if args[0] == "all" else args
+    steps = ["indexes", "commits", "decisions", "codeowners", "prs", "part_of", "issues", "references", "components_cleanup"] if args[0] == "all" else args
     try:
         for step in steps:
             load_step(graph, step)
