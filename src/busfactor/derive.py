@@ -10,6 +10,7 @@ from redis.exceptions import RedisError
 from busfactor.db import get_graph, load_query
 
 QUERY_NAMES = (
+    "03d_mark_bulk_commits",
     "03_derive_knows",
     "03c_derive_knows_component",
     "03b_derive_last_seen",
@@ -17,6 +18,7 @@ QUERY_NAMES = (
     "04b_derive_participated_pr",
     "04c_derive_participated_issue",
 )
+DEFAULT_MAX_COMMIT_FILES = 100
 
 
 def default_since() -> int:
@@ -29,9 +31,10 @@ def _scalar(graph, query_name: str) -> int:
     return int(graph.ro_query(load_query(query_name)).result_set[0][0])
 
 
-def build_query_params(since: int, min_shared: int, max_file_commits: int) -> dict[str, dict]:
+def build_query_params(since: int, min_shared: int, max_file_commits: int, max_commit_files: int = DEFAULT_MAX_COMMIT_FILES) -> dict[str, dict]:
     """Return the exact parameter maps passed to each derive query."""
     return {
+        "03d_mark_bulk_commits": {"maxCommitFiles": max_commit_files},
         "03_derive_knows": {},
         "03c_derive_knows_component": {},
         "03b_derive_last_seen": {"since": since},
@@ -72,12 +75,17 @@ def _print_sanity(graph) -> None:
         print(f"  {title}: {count}")
 
 
-def run_derive(graph, since: int, min_shared: int, max_file_commits: int) -> None:
+def run_derive(graph, since: int, min_shared: int, max_file_commits: int, max_commit_files: int = DEFAULT_MAX_COMMIT_FILES) -> None:
     """Run each named derive query in order and report its work and runtime."""
-    for name, query_params in build_query_params(since, min_shared, max_file_commits).items():
+    for name, query_params in build_query_params(since, min_shared, max_file_commits, max_commit_files).items():
         started = time.perf_counter()
         result = graph.query(load_query(name), query_params)
         elapsed = time.perf_counter() - started
+        if name == "03d_mark_bulk_commits":
+            bulk = [row for row in result.result_set if row[1] > max_commit_files]
+            print(f"Bulk cutoff: more than {max_commit_files} touched files; marked={len(bulk)}")
+            for sha, files, subject in bulk:
+                print(f"  {sha} files={files} subject={subject}")
         created = int(result.relationships_created)
         total = _scalar(graph, "03m_sanity_relationship_count")
         print(f"{name}: relationships created={created}, graph total={total}, elapsed={elapsed:.3f}s")
@@ -89,15 +97,16 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--since", type=int, default=None, help="activity window start, epoch milliseconds")
     parser.add_argument("--min-shared", type=int, default=3, help="minimum shared recent files for WORKS_WITH")
     parser.add_argument("--max-file-commits", type=int, default=150, help="skip files touched by more recent commits")
+    parser.add_argument("--max-commit-files", type=int, default=DEFAULT_MAX_COMMIT_FILES, help="exclude commits touching more files from expertise/overlap")
     args = parser.parse_args(argv)
-    if args.min_shared < 1 or args.max_file_commits < 1:
-        parser.error("--min-shared and --max-file-commits must be positive")
+    if args.min_shared < 1 or args.max_file_commits < 1 or args.max_commit_files < 1:
+        parser.error("--min-shared, --max-file-commits, and --max-commit-files must be positive")
 
     since = default_since() if args.since is None else args.since
     try:
         graph = get_graph()
         graph.client.connection.ping()
-        run_derive(graph, since, args.min_shared, args.max_file_commits)
+        run_derive(graph, since, args.min_shared, args.max_file_commits, args.max_commit_files)
     except (RedisError, OSError, ConnectionError) as exc:
         print(f"FalkorDB is unreachable or the derive query failed: {exc}", file=sys.stderr)
         return 1

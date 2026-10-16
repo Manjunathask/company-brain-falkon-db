@@ -7,6 +7,7 @@ SET d.title = r.title, d.status = r.status, d.proposedOn = r.proposedOn, d.decid
 MERGE (i:Issue {number: r.issue})
 MERGE (d)-[:TRACKED_IN]->(i)
 MERGE (f:File {path: r.path})
+SET f.exists = coalesce(f.exists, true)
 WITH d, i, r, f
 OPTIONAL MATCH (f)-[oldComponent:IN_COMPONENT]->(:Component)
 DELETE oldComponent

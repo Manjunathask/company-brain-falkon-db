@@ -1,11 +1,11 @@
 // Answers: group files touched by a departing person that no other active, non-bot person touched recently.
 // Parameters: $login is the departing person; $since is the activity-window start in epoch milliseconds.
-// Shape: collect distinct other active editors per file before filtering, so multiple commits or files cannot inflate orphan counts and bots never count as coverage.
+// Shape: collect distinct other active editors per file before filtering; deleted files and bulk commits are excluded because neither indicates current, focused knowledge risk.
 MATCH (gone:Person {login: $login})-[:AUTHORED]->(c:Commit)-[:TOUCHED]->(f:File)-[:IN_COMPONENT]->(component:Component)
-WHERE c.ts > $since AND coalesce(gone.bot, false) = false
+WHERE c.ts > $since AND coalesce(gone.bot, false) = false AND coalesce(c.bulk, false) = false AND coalesce(f.exists, true) = true
 WITH gone, f, component
 OPTIONAL MATCH (other:Person:Active)-[:AUTHORED]->(otherCommit:Commit)-[:TOUCHED]->(f)
-WHERE other <> gone AND otherCommit.ts > $since AND coalesce(other.bot, false) = false
+WHERE other <> gone AND otherCommit.ts > $since AND coalesce(other.bot, false) = false AND coalesce(otherCommit.bulk, false) = false
 WITH f, component, collect(DISTINCT other.login) AS otherEditors
 WITH f, component, size(otherEditors) = 0 AS isOrphaned
 WITH component,

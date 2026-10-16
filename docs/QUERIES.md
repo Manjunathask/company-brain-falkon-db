@@ -130,6 +130,14 @@ This query combines commit, PR, review, and issue activity timestamps. It refres
 
 This is the Component-level expertise version of KNOWS. It counts distinct authored commits touching files in each Component.
 
+## `03d_mark_bulk_commits.cypher`
+
+**What it answers:** mark commits that touched more than the configured file threshold as bulk changes.
+
+**Parameters:** $maxCommitFiles is the maximum number of touched files for a commit to contribute to expertise and collaboration.
+
+The query resets and recomputes `Commit.bulk` from distinct TOUCHED files. Bulk commits stay in the graph for PR decision traces, while derived expertise and overlap queries exclude them.
+
 ## `03g_sanity_top_modules.cypher`
 
 **What it answers:** list Modules with the most derived KNOWS edges for derive sanity reporting.
@@ -328,7 +336,7 @@ The query returns a KNOWS path from the departing person to every affected Compo
 
 **Parameters:** $login is the departing person; $since is the activity-window start in epoch milliseconds.
 
-This finds recently touched files that no other active non-bot person edited. It aggregates editors by file before deciding which files are orphaned.
+This finds recently touched, extant files touched by focused commits that no other active non-bot person edited. Deleted files retain their TOUCHED history but cannot count as current knowledge at risk.
 
 ## `06b_departure_files_graph.cypher`
 
@@ -336,7 +344,7 @@ This finds recently touched files that no other active non-bot person edited. It
 
 **Parameters:** $login is the person; $since is the activity cutoff.
 
-It repeats the orphan test at file level, requiring a recent commit by the departing person and no recent edit by another active non-bot. The returned paths connect that person through the touching commit and orphaned file to its Component.
+It repeats the orphan test while excluding deleted files and bulk commits, and requires no recent edit by another active non-bot. Deleted history remains available to trace queries, but does not appear as live file-risk evidence.
 
 ## `07_orphaned_decisions.cypher`
 
@@ -354,13 +362,29 @@ This filters the departing person?s decision participation by confidence, then c
 
 The query follows confidence-qualified participation from the departing person to each selected Decision, then returns paths from other qualifying participants into those Decisions. These paths support the decision and who-to-ask evidence.
 
+## `07b_decision_share.cypher`
+
+**What it answers:** find decisions where a person opened at least a requested share of the PRs that implement the decision, and identify other active PR openers to ask.
+
+**Parameters:** $login is the person; $minShare defaults to 0.3; $minConfidence is `high` or `low`.
+
+It counts distinct confidence-qualified implementing PRs for the person and for the decision as a whole, then reports their share and active co-openers with their own PR counts. RFC issue commenters do not count as decision ownership.
+
+## `07b_decision_share_graph.cypher`
+
+**What it answers:** show the PR-opening paths supporting decision-share ownership and the active co-openers to ask.
+
+**Parameters:** $login is the owner being evaluated; $decisions are returned decision titles; $minConfidence is the confidence threshold.
+
+It returns only `Person -OPENED-> PR -IMPLEMENTS-> Decision` paths for selected decisions, filtered to the owner and active other openers.
+
 ## `08_successor.cypher`
 
 **What it answers:** rank active non-bot successors for a departing person's Component by shared recent files, then component commits.
 
 **Parameters:** $login is the departing person; $component is the Component.name; $since is the recent activity cutoff.
 
-The departing person?s recent files in one Component form the overlap set. Active non-bot candidates are ranked by how many of those files they touched, then by their KNOWS commit total.
+The departing person?s recent extant files from non-bulk commits in one Component form the overlap set. Active non-bot candidates are ranked by how many of those current files they touched in non-bulk commits.
 
 ## `08_successor_graph.cypher`
 
@@ -368,7 +392,7 @@ The departing person?s recent files in one Component form the overlap set. Activ
 
 **Parameters:** $login, $successors, $component, and $since identify the overlap result.
 
-The path starts at the departing person, passes through their recent commit and a shared file, then follows the candidate?s touching commit to that person. It restricts paths to the selected Component and ranked successors so the evidence matches the overlap that drove the result.
+The path starts at the departing person, passes through a recent non-bulk commit and extant shared file, then follows the candidate?s non-bulk touching commit. It restricts paths to the selected Component and ranked successors so the evidence matches the overlap that drove the result.
 
 ## `09_bridges.cypher`
 

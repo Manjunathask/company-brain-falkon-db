@@ -1,6 +1,6 @@
 // Answers: load people, commits, touched files, modules, and components from local git history.
-// Parameters: $rows is a batch of commit maps with author, authorEmail, authorHandle, authorBot, authorName, files, and commit fields; each file has module and component.
-// Shape: UNWIND plus MERGE makes each batch safe to replay; Module remains first-path-segment and Component adds finer-grained ownership.
+// Parameters: $rows is a batch of commit maps with author, authorEmail, authorHandle, authorBot, authorName, files, and commit fields; each file has module, component, and exists.
+// Shape: UNWIND plus MERGE makes each batch safe to replay; HEAD existence distinguishes deleted history from current knowledge while preserving TOUCHED.
 UNWIND $rows AS c
 MERGE (p:Person {login: c.author})
 SET p.emails = CASE
@@ -16,6 +16,7 @@ MERGE (p)-[:AUTHORED]->(k)
 WITH k, c
 UNWIND c.files AS f
 MERGE (fl:File {path: f.path})
+SET fl.exists = coalesce(f.exists, fl.exists, true)
 WITH k, c, f, fl
 OPTIONAL MATCH (fl)-[oldComponent:IN_COMPONENT]->(:Component)
 DELETE oldComponent

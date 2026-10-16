@@ -84,6 +84,7 @@ def test_every_registry_tool_runs_on_fixture(graph):
         tools.departure_impact('alice',since=0,minCommits=1),
         tools.departure_files('alice',since=0),
         tools.orphaned_decisions('alice'),
+        tools.decision_share('alice'),
         tools.successor('alice','spark/test',since=0),
         tools.bridges(), tools.groups(), tools.simulate_departure('bob'),
         tools.decision_trace('icebergcompat/test/B.scala'),
@@ -97,7 +98,7 @@ def test_every_registry_tool_runs_on_fixture(graph):
         assert set(result['graph']) == {'nodes','edges'}
     assert any(row['component']=='spark/test' for row in checks[2]['rows'])
     assert next(result for result in checks if result['tool']=='why_not')['rows'][0]['chosenInstead']=='New Choice'
-    group_row = checks[7]['rows'][0]
+    group_row = next(result for result in checks if result['tool'] == 'groups')['rows'][0]
     assert group_row['groups'] == 2
     assert group_row['largestGroup'] == 3
     assert group_row['nonSingletonGroups'] == 2
@@ -106,6 +107,25 @@ def test_every_registry_tool_runs_on_fixture(graph):
     assert any(row['decision']=='Threshold Check' for row in high['rows'])
     assert not any(row['decision']=='Threshold Check' for row in low['rows'])
     assert _snapshot(graph) == before
+
+
+def test_decision_share_counts_pr_ownership_and_lists_active_openers(graph):
+    graph.query("""
+        CREATE (d:Decision {slug:'share-fixture',title:'Share Fixture',status:'accepted'}),
+               (p1:PR {number:901})-[:IMPLEMENTS {confidence:'high'}]->(d),
+               (p2:PR {number:902})-[:IMPLEMENTS {confidence:'high'}]->(d),
+               (p3:PR {number:903})-[:IMPLEMENTS {confidence:'high'}]->(d)
+        WITH d,p1,p2,p3
+        MATCH (alice:Person {login:'alice'}), (bob:Person {login:'bob'})
+        CREATE (alice)-[:OPENED]->(p1), (alice)-[:OPENED]->(p2), (bob)-[:OPENED]->(p3)
+    """)
+    result = tools.decision_share('alice', minShare=0.3, minConfidence='high')
+    row = next(item for item in result['rows'] if item['decision'] == 'Share Fixture')
+    assert row['theirPRs'] == 2
+    assert row['totalPRs'] == 3
+    assert row['share'] == pytest.approx(2 / 3)
+    assert row['otherOpeners'] == [{'login': 'bob', 'prs': 1}]
+    assert len(result['graph']['edges']) >= 3
 
 
 def test_simulate_departure_splits_group_and_cleans_copy(graph):

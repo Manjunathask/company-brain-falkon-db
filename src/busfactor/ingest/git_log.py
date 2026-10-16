@@ -72,7 +72,16 @@ def collect_commits(repo: Path, since: str) -> list[dict]:
         f"--format={HEADER}",
     ]
     output = subprocess.run(command, check=True, capture_output=True, text=True, encoding="utf-8").stdout
-    return parse_git_log(output)
+    commits = parse_git_log(output)
+    head_files = subprocess.run(
+        ["git", "-C", str(repo), "ls-files"], check=True,
+        capture_output=True, text=True, encoding="utf-8",
+    ).stdout.splitlines()
+    existing = {path.replace("\\", "/") for path in head_files}
+    for commit in commits:
+        for file in commit["files"]:
+            file["exists"] = file["path"].replace("\\", "/") in existing
+    return commits
 
 
 def summarize(commits: list[dict]) -> str:

@@ -341,6 +341,36 @@ def test_component_bus_factor_and_orphaned_file_queries(graph):
     assert not any(item[0] == "spark/wp5-bus" for item in filtered)
     assert filtered[0][6] >= 1
 
+
+def test_deleted_file_is_not_reported_and_bulk_commit_stays_traceable(graph):
+    graph.query("""
+        CREATE (gone:Person {login:'wp6gone',bot:false}),
+               (m:Module {name:'wp6'}),
+               (comp:Component {name:'wp6/deleted'})-[:IN_MODULE]->(m),
+               (deleted:File {path:'wp6/deleted/Removed.scala',exists:false})-[:IN_COMPONENT]->(comp),
+               (deleted)-[:IN_MODULE]->(m),
+               (old:Commit {sha:'wp6-deleted',ts:1800000000000,bulk:false})-[:TOUCHED]->(deleted),
+               (gone)-[:AUTHORED]->(old),
+               (p:PR {number:9901,title:'Bulk trace'})-[:IMPLEMENTS {confidence:'high',via:'issue-ref'}]->(d:Decision {slug:'wp6-trace',title:'WP6 Trace'}),
+               (d)-[:TRACKED_IN]->(i:Issue {number:9901}),
+               (gone)-[:AUTHORED]->(bulk:Commit {sha:'wp6-bulk',ts:1800000000000,subject:'mass edit'}),
+               (bulk)-[:PART_OF]->(p),
+               (f1:File {path:'wp6/bulk/A.scala',exists:true})-[:IN_COMPONENT]->(comp),
+               (f2:File {path:'wp6/bulk/B.scala',exists:true})-[:IN_COMPONENT]->(comp),
+               (f1)-[:IN_MODULE]->(m), (f2)-[:IN_MODULE]->(m),
+               (bulk)-[:TOUCHED]->(f1), (bulk)-[:TOUCHED]->(f2)
+        CREATE (gone)-[:OPENED]->(p)
+    """)
+    _run(graph, "03d_mark_bulk_commits", {"maxCommitFiles": 1})
+    _run(graph, "03_derive_knows")
+    _run(graph, "03c_derive_knows_component")
+    assert graph.ro_query("MATCH (:Person {login:'wp6gone'})-[k:KNOWS]->(:Component {name:'wp6/deleted'}) RETURN count(k)").result_set[0][0] == 0
+    orphaned = graph.query(load_query("06b_departure_files"), {"login":"wp6gone", "since":SINCE}).result_set
+    assert not any("Removed.scala" in str(row) for row in orphaned)
+    assert graph.ro_query("MATCH (c:Commit {sha:'wp6-bulk'}) RETURN c.bulk").result_set[0][0] is True
+    trace = graph.ro_query(load_query("10_decision_trace"), {"path":"wp6/bulk/A.scala", "limit":5}).result_set
+    assert trace, "bulk commit remains in the decision trace"
+
     # Only gone touched the first file; a peer covers the second; a bot's touch
     # must not provide coverage for the third.
     graph.query("""

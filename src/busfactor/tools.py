@@ -14,6 +14,7 @@ DEFAULTS = {
     "minCommits": 2,
     "minTotal": 5,
     "minConfidence": "low",
+    "minShare": 0.3,
     "driftMinConfidence": "high",
 }
 GRAPH_KEY_MAP = {
@@ -22,6 +23,7 @@ GRAPH_KEY_MAP = {
     "06_departure_impact": {"people": "login", "components": "component"},
     "06b_departure_files": {"people": "login", "components": "component", "files": "examplePaths"},
     "07_orphaned_decisions": {"people": "login", "decisions": "decision"},
+    "07b_decision_share": {"people": "login", "decisions": "decision"},
     "08_successor": {"people": "successor", "components": "component"},
     "09_bridges": {"people": "person"},
     "09b_groups": {},
@@ -85,6 +87,8 @@ def _graph_for(name: str, rows: list[dict], graph=None, main_params: dict | None
         params["areas"] = [{"name": row[key], "count": row["busFactor"]} for row in rows if row.get(key) is not None]
     elif name == "07_orphaned_decisions":
         params["decisions"] = [row["decision"] for row in rows]
+    elif name == "07b_decision_share":
+        params["decisions"] = [row["decision"] for row in rows]
     elif name == "08_successor":
         params["successors"] = [row["successor"] for row in rows]
     elif name == "11_drift":
@@ -128,7 +132,7 @@ def _run(name: str, params: dict, *, graph=None) -> dict:
     result = graph.ro_query(query, params)
     columns = [header[1] for header in result.header]
     rows = [dict(zip(columns, row)) for row in result.result_set]
-    return {"tool": {"05_bus_factor":"bus_factor","05b_bus_factor_component":"bus_factor_component","06_departure_impact":"departure_impact","06b_departure_files":"departure_files","07_orphaned_decisions":"orphaned_decisions","08_successor":"successor","09_bridges":"bridges","09b_groups":"groups","10_decision_trace":"decision_trace","10b_why_not":"why_not","11_drift":"drift","12_declared_vs_actual":"declared_vs_actual","13_find_entity":"find_entity"}.get(name, name), "params": params, "cypher": query, "rows": rows, "graph": _graph_for(name, rows, graph, params)}
+    return {"tool": {"05_bus_factor":"bus_factor","05b_bus_factor_component":"bus_factor_component","06_departure_impact":"departure_impact","06b_departure_files":"departure_files","07_orphaned_decisions":"orphaned_decisions","07b_decision_share":"decision_share","08_successor":"successor","09_bridges":"bridges","09b_groups":"groups","10_decision_trace":"decision_trace","10b_why_not":"why_not","11_drift":"drift","12_declared_vs_actual":"declared_vs_actual","13_find_entity":"find_entity"}.get(name, name), "params": params, "cypher": query, "rows": rows, "graph": _graph_for(name, rows, graph, params)}
 
 def bus_factor(since: int | None = None, minCommits: int | None = None, minTotal: int | None = None) -> dict:
     """Report module bus factors from recent non-bot commit expertise."""
@@ -149,6 +153,10 @@ def departure_files(login: str, since: int | None = None) -> dict:
 def orphaned_decisions(login: str, minConfidence: str | None = None) -> dict:
     """Find decisions where this person's participation is the only active participation at the chosen confidence."""
     return _run("07_orphaned_decisions", {"login":login,"minConfidence":minConfidence or DEFAULTS["minConfidence"]})
+
+def decision_share(login: str, minShare: float | None = None, minConfidence: str | None = None) -> dict:
+    """Find decisions where this person opened at least the requested share of implementing PRs, and list active co-openers."""
+    return _run("07b_decision_share", {"login":login,"minShare":DEFAULTS["minShare"] if minShare is None else minShare,"minConfidence":minConfidence or DEFAULTS["minConfidence"]})
 
 def successor(login: str, component: str, since: int | None = None) -> dict:
     """Rank active non-bot successors for a Component by shared recent files, then component commit expertise."""
@@ -186,13 +194,13 @@ def find_entity(text: str, limit: int = 20) -> dict:
     """Resolve free text to people, modules, Components, decisions, or file paths ending in the supplied text."""
     return _run("13_find_entity", {"text":text,"limit":limit})
 
-TOOLS = {"bus_factor":bus_factor,"bus_factor_component":bus_factor_component,"departure_impact":departure_impact,"departure_files":departure_files,"orphaned_decisions":orphaned_decisions,"successor":successor,"bridges":bridges,"groups":groups,"simulate_departure":simulate_departure,"decision_trace":decision_trace,"why_not":why_not,"drift":drift,"declared_vs_actual":declared_vs_actual,"find_entity":find_entity}
+TOOLS = {"bus_factor":bus_factor,"bus_factor_component":bus_factor_component,"departure_impact":departure_impact,"departure_files":departure_files,"orphaned_decisions":orphaned_decisions,"decision_share":decision_share,"successor":successor,"bridges":bridges,"groups":groups,"simulate_departure":simulate_departure,"decision_trace":decision_trace,"why_not":why_not,"drift":drift,"declared_vs_actual":declared_vs_actual,"find_entity":find_entity}
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run a Bus Factor graph tool")
     parser.add_argument("tool", choices=TOOLS)
     parser.add_argument("--login"); parser.add_argument("--component"); parser.add_argument("--path"); parser.add_argument("--slug"); parser.add_argument("--text")
-    parser.add_argument("--since", type=int); parser.add_argument("--minCommits", type=int); parser.add_argument("--minTotal", type=int); parser.add_argument("--minConfidence"); parser.add_argument("--limit", type=int)
+    parser.add_argument("--since", type=int); parser.add_argument("--minCommits", type=int); parser.add_argument("--minTotal", type=int); parser.add_argument("--minConfidence"); parser.add_argument("--minShare", type=float); parser.add_argument("--limit", type=int)
     args = parser.parse_args(); values = vars(args); tool = TOOLS[args.tool]
     values.pop("tool"); values = {k:v for k,v in values.items() if v is not None}
     import inspect

@@ -18,7 +18,7 @@ def test_all_derive_queries_have_headers_and_declared_parameters():
 def test_every_derive_query_file_is_registered():
     from busfactor.db import ROOT
 
-    files = {path.stem for path in (ROOT / "queries").glob("0[34]*_derive*.cypher")}
+    files = {path.stem for path in (ROOT / "queries").glob("0[34]*_*.cypher") if path.stem in QUERY_NAMES or "derive" in path.stem or "mark_bulk" in path.stem}
     assert files == set(QUERY_NAMES) | {
         "04d_derive_implements_issue_ref",
         "04e_derive_implements_rfc_doc",
