@@ -23,6 +23,10 @@ def is_bot(login: str | None) -> bool:
 
 def load_api_map() -> dict[str, str | None]:
     """Load the GitHub email identity map cached by the API ingestion step."""
+    if __import__("os").getenv("BUSFACTOR_INPUT", "raw") == "snapshot":
+        from busfactor.snapshot import read_input
+        data = read_input("identities")
+        return {email.strip().lower(): login for email, login in data.items()}
     path = ROOT / "data" / "raw" / "identities.json"
     if not path.exists():
         return {}

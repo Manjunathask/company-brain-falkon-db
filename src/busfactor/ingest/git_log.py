@@ -111,6 +111,14 @@ def main() -> None:
     output = ROOT / "data" / "raw" / "git_log.json"
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(commits, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    head_files = subprocess.run(
+        ["git", "-C", str(repo), "ls-files"], check=True,
+        capture_output=True, text=True, encoding="utf-8",
+    ).stdout.splitlines()
+    (output.parent / "head_files.json").write_text(
+        json.dumps(sorted(path.replace("\\", "/") for path in head_files), ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
     print(summarize(commits))
     print(f"Wrote: {output.relative_to(ROOT)}")
 

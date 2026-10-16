@@ -12,5 +12,24 @@ services:
       # The data path is confirmed by FalkorDB docs; persistence across restart still needs checking.
       - falkordb_data:/var/lib/falkordb/data
 
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      falkordb:
+        condition: service_started
+    environment:
+      FALKORDB_HOST: falkordb
+      FALKORDB_PORT: "6379"
+      FALKORDB_GRAPH: delta
+      BUSFACTOR_INPUT: snapshot
+      HOST: 0.0.0.0
+      PORT: "8000"
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_WORKSPACE_ID: ${ANTHROPIC_WORKSPACE_ID:-}
+      AGENT_MODEL: ${AGENT_MODEL:-claude-sonnet-5-5}
+    ports:
+      - "127.0.0.1:8000:8000"
+
 volumes:
   falkordb_data:

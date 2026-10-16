@@ -9,6 +9,7 @@ from redis.exceptions import RedisError
 
 from busfactor.db import ROOT, get_graph, load_query
 from busfactor.decision_keywords import KEYWORDS
+from busfactor.snapshot import read_input
 
 RAW = ROOT / "data" / "raw"
 HIGH_CONFIDENCE = "high"
@@ -31,7 +32,7 @@ def strongest_evidence(existing: dict | None, via: str, confidence: str) -> dict
 
 def validate_keywords() -> list[dict]:
     """Ensure all currently parsed RFC slugs are explicitly represented."""
-    rfcs = json.loads((RAW / "rfcs.json").read_text(encoding="utf-8"))
+    rfcs = read_input("rfcs")
     slugs = {rfc["slug"] for rfc in rfcs}
     missing = sorted(slugs - KEYWORDS.keys())
     extra = sorted(KEYWORDS.keys() - slugs)
@@ -65,6 +66,8 @@ def title_matches(pr_titles: list[dict], rfcs: list[dict]) -> list[dict]:
 
 
 def _json(name: str) -> list[dict]:
+    if __import__("os").getenv("BUSFACTOR_INPUT", "raw") == "snapshot":
+        return read_input(name.removesuffix(".json"))
     return json.loads((RAW / name).read_text(encoding="utf-8"))
 
 
@@ -132,7 +135,13 @@ def run(graph) -> None:
     _print_results(graph, matches, rfcs)
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
+    args = list(sys.argv[1:] if argv is None else argv)
+    if args not in ([], ["--from-snapshot"]):
+        print("Usage: python -m busfactor.link_decisions [--from-snapshot]", file=sys.stderr)
+        return 2
+    if args:
+        __import__("os").environ["BUSFACTOR_INPUT"] = "snapshot"
     try:
         graph = get_graph()
         graph.client.connection.ping()

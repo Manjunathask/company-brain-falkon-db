@@ -1,5 +1,10 @@
 # data: raw API cache and the delta clone
-data/
+# Parsed inputs and clones are private to each working tree; only the public snapshot ships.
+data/*
+!data/snapshot/
+data/snapshot/*
+!data/snapshot/*.json.gz
+!data/snapshot/manifest.json
 .env
 .venv/
 __pycache__/

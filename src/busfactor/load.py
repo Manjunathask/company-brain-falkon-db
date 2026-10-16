@@ -11,11 +11,14 @@ from busfactor.ingest.codeowners import rows_for_loading
 from busfactor.ingest.components import component_of
 from busfactor.ingest.identity import is_bot, load_api_map, resolve_person_key
 from busfactor.ingest.github_api import references
+from busfactor.snapshot import INPUTS, read_input
 
 RAW = ROOT / "data" / "raw"
 
 
 def read_rows(name: str) -> list[dict]:
+    if __import__("os").getenv("BUSFACTOR_INPUT", "raw") == "snapshot":
+        return read_input(Path(name).stem)
     path = RAW / name
     if not path.exists():
         raise FileNotFoundError(f"Parsed input missing: {path}; run its ingest module first")
@@ -42,7 +45,7 @@ def load_step(graph, step: str) -> None:
         create_indexes(graph)
         print(f"indexes: 8 created or already present; {_counts(graph)}")
     elif step == "commits":
-        api_map = load_api_map()
+        api_map = read_input("identities") if __import__("os").getenv("BUSFACTOR_INPUT", "raw") == "snapshot" else load_api_map()
         commits = read_rows("git_log.json")
         rows = []
         for commit in commits:
@@ -78,14 +81,29 @@ def load_step(graph, step: str) -> None:
     elif step == "components_cleanup":
         graph.query(load_query("01f_cleanup_components"))
         print(f"components_cleanup: removed unused components; {_counts(graph)}")
+    elif step == "head_files":
+        if __import__("os").getenv("BUSFACTOR_INPUT", "raw") == "snapshot":
+            paths = read_input("head_files")
+        elif (RAW / "head_files.json").exists():
+            paths = read_rows("head_files.json")
+        else:
+            paths = sorted({f["path"].replace("\\", "/") for c in read_rows("git_log.json")
+                            for f in c.get("files", []) if f.get("exists")})
+        graph.query(load_query("15a_refresh_head_files"), {"paths": paths})
+        print(f"head_files: paths={len(paths)}; {_counts(graph)}")
     else:
         raise ValueError(f"unknown load step: {step}")
 
 
 def main(argv: list[str] | None = None) -> int:
     args = list(sys.argv[1:] if argv is None else argv)
-    if len(args) != 1 or args[0] not in {"indexes", "commits", "decisions", "codeowners", "prs", "part_of", "issues", "references", "components_cleanup", "all"}:
-        print("Usage: python -m busfactor.load {indexes,commits,decisions,codeowners,prs,part_of,issues,references,components_cleanup,all}", file=sys.stderr)
+    from_snapshot = "--from-snapshot" in args
+    args = [arg for arg in args if arg != "--from-snapshot"]
+    if from_snapshot:
+        __import__("os").environ["BUSFACTOR_INPUT"] = "snapshot"
+    valid_steps = {"indexes", "commits", "decisions", "codeowners", "prs", "part_of", "issues", "references", "components_cleanup", "head_files", "all"}
+    if len(args) != 1 or args[0] not in valid_steps:
+        print("Usage: python -m busfactor.load {indexes,commits,decisions,codeowners,prs,part_of,issues,references,components_cleanup,head_files,all} [--from-snapshot]", file=sys.stderr)
         return 2
     try:
         graph = get_graph()
@@ -93,7 +111,7 @@ def main(argv: list[str] | None = None) -> int:
     except (RedisError, OSError, ConnectionError) as exc:
         print(f"FalkorDB is unreachable. Start it with 'docker compose up -d' and check FALKORDB_HOST/PORT: {exc}", file=sys.stderr)
         return 1
-    steps = ["indexes", "commits", "decisions", "codeowners", "prs", "part_of", "issues", "references", "components_cleanup"] if args[0] == "all" else args
+    steps = ["indexes", "commits", "decisions", "codeowners", "prs", "part_of", "issues", "references", "head_files", "components_cleanup"] if args[0] == "all" else args
     try:
         for step in steps:
             load_step(graph, step)

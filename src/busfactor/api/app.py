@@ -192,6 +192,8 @@ def health():
 
 @app.post("/api/ask")
 def ask_endpoint(body: AskRequest):
+    if os.getenv("AGENT_PROVIDER", "anthropic").lower() == "anthropic" and not os.getenv("ANTHROPIC_API_KEY"):
+        raise HTTPException(status_code=503, detail="Agent chat is disabled. Set ANTHROPIC_API_KEY to enable /api/ask.")
     try:
         return ask(body.question, body.user, body.sessionId)
     except ValueError as exc:

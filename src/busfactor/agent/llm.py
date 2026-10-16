@@ -101,6 +101,8 @@ class ScriptedLLM:
 def create_llm():
     provider = os.getenv("AGENT_PROVIDER", "anthropic").lower()
     if provider == "anthropic":
+        if not os.getenv("ANTHROPIC_API_KEY"):
+            raise ValueError("Set ANTHROPIC_API_KEY to enable agent chat")
         return AnthropicLLM()
     if provider == "scripted":
         raw = os.getenv("AGENT_SCRIPT")
