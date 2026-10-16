@@ -4,6 +4,12 @@ docs/PLAN.md (Decision, IMPLEMENTS, the notes under the relationship table) and 
 WP1-WP3 are done; follow their conventions (db.run_query(bare name), header comments, PLAN numbering
 with letter suffixes, Person.login lower-cased, bots excluded from derived edges).
 
+Data now available (fetched live by the reviewer): data/raw/prs.json has 3,599 PRs with title, body,
+author and reviewers; data/raw/rfc_issues.json has the 19 RFC issues. The live graph has 26 REFERENCES
+edges from PR bodies to RFC issues. FalkorDB runs on the reviewer's machine but your sandbox cannot reach
+it, so test the matcher against data/raw/prs.json titles (better than commit subjects: it includes
+unmerged PRs) and leave the live run to the reviewer.
+
 Goal: PR -[:IMPLEMENTS {via, confidence}]-> Decision, so "why does this code work this way?" can walk
 File <- Commit -> PR -> Decision -> Issue. Three sources, strongest first:
 1. via 'issue-ref', confidence 'high': the PR body cites the RFC's tracking issue. This is pure graph:
@@ -61,8 +67,10 @@ git commands are fine). Do not run git commit. No LLM calls; this is determinist
 </action_safety>
 
 <verification_loop>
-`.venv/Scripts/python -m pytest -q` must pass. Run the keyword matcher against commit subjects (the
-fallback path) and include per-decision match counts. If FalkorDB is reachable, run link_decisions and
+`.venv/Scripts/python -m pytest -q` must pass (the live integration test will skip in your sandbox).
+Run the keyword matcher against PR titles in data/raw/prs.json and include per-decision match counts and
+5 example titles for each decision with more than 0 matches. Extend tests/test_graph_integration.py with
+IMPLEMENTS cases (issue-ref high, rfc-doc high, keyword low, no downgrade, re-run identical). If FalkorDB is reachable, run link_decisions and
 include its output; otherwise say so.
 </verification_loop>
 
