@@ -19,4 +19,20 @@ def test_every_derive_query_file_is_registered():
     from busfactor.db import ROOT
 
     files = {path.stem for path in (ROOT / "queries").glob("0[34]*_derive*.cypher")}
-    assert files == set(QUERY_NAMES)
+    assert files == set(QUERY_NAMES) | {
+        "04d_derive_implements_issue_ref",
+        "04e_derive_implements_rfc_doc",
+    }
+
+
+def test_every_query_file_has_header_and_declares_exact_parameters():
+    from busfactor.db import ROOT
+
+    for path in sorted((ROOT / "queries").glob("*.cypher")):
+        query = path.read_text(encoding="utf-8")
+        header = "\n".join(query.splitlines()[:3])
+        assert "// Answers:" in header, path.name
+        assert "// Parameters:" in header, path.name
+        declared = set(re.findall(r"\$([A-Za-z_][A-Za-z0-9_]*)", header))
+        actual = set(re.findall(r"\$([A-Za-z_][A-Za-z0-9_]*)", query))
+        assert actual == declared, path.name

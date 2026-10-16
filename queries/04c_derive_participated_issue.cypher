@@ -4,4 +4,5 @@
 MATCH (p:Person)-[:OPENED|COMMENTED]->(:Issue)<-[:TRACKED_IN]-(d:Decision)
 WHERE coalesce(p.bot, false) = false
 MERGE (p)-[part:PARTICIPATED_IN]->(d)
-SET part.via = coalesce(part.via, 'issue')
+SET part.confidence = 'high',
+    part.via = coalesce(part.via, 'issue')

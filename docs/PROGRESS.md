@@ -10,3 +10,4 @@ One line per finished step, newest at the bottom: date · agent · what changed 
 - 2026-10-16 · Codex · Counted latest PR review and issue comment activity, refreshed lastSeen from all supported activity, and expanded assumption checks g–i · Re-run pytest and live checks after starting FalkorDB
 - 2026-10-16 · Codex · Fixed REVIEWED.at loading and added marked end-to-end Cypher integration coverage for loader and derive behavior · Integration test skips without FalkorDB; run against a live server to verify query execution
 - 2026-10-16 · Codex · Matched FalkorDB duplicate-index wording, isolated assumption check h, and bound Docker ports to localhost · Verify integration test against live FalkorDB 4.22.0
+- 2026-10-16 · Codex · Added WP4 issue/document/title IMPLEMENTS linking, confidence-aware participation, and keyword tests; live run found 26 issue-ref, 27 rfc-doc, and 258 title matches · Review keyword precision/examples and confirm live graph counts

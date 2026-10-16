@@ -13,6 +13,16 @@ each answer.
 5. Run the local parsers with `uv run python -m busfactor.ingest.git_log`,
    `uv run python -m busfactor.ingest.rfcs`, and `uv run python -m busfactor.ingest.codeowners`.
 6. Load parsed data with `uv run python -m busfactor.load all` once FalkorDB is running.
+7. Link PRs to RFC decisions with `uv run python -m busfactor.link_decisions`.
+8. Refresh derived relationships with `uv run python -m busfactor.derive`.
+
+## Pipeline
+
+Load all source data first (`busfactor.load all`), then run `busfactor.link_decisions`, then
+`busfactor.derive`. The decision linker creates high-confidence issue-reference and RFC-document
+links plus low-confidence title-keyword links. Low-confidence PR links still contribute
+`PARTICIPATED_IN` evidence when someone opened or reviewed the PR; the relationship copies the
+link confidence so later queries can filter to high-confidence participation.
 
 The graph model and the Cypher query rationale are documented in [docs/PLAN.md](docs/PLAN.md).
 

@@ -186,7 +186,7 @@ def test_load_and_derive_queries_end_to_end(graph):
         {"slug": "managed-commits", "title": "Managed Commits", "status": "rejected", "proposedOn": None,
          "decidedOn": RECENT - 100, "issue": 500, "path": "protocol_rfcs/managed-commits.md", "module": "protocol_rfcs"},
         {"slug": "catalog-managed", "title": "Catalog-Managed Tables", "status": "accepted", "proposedOn": None,
-         "decidedOn": RECENT - 50, "issue": 500, "path": "protocol_rfcs/catalog-managed.md", "module": "protocol_rfcs"},
+         "decidedOn": RECENT - 50, "issue": 501, "path": "protocol_rfcs/catalog-managed.md", "module": "protocol_rfcs"},
     ]
     _run(graph, "02_load_decisions", {"rows": decisions})
     _run(graph, "02b_superseded_by")
@@ -205,12 +205,55 @@ def test_load_and_derive_queries_end_to_end(graph):
     ).result_set[0]
     assert owner == ["MiXeDOwner", "/spark/"]
 
+    _run(graph, "01c_load_prs", {"rows": [{
+        "number": 102, "title": "Support coordinated commits", "state": "MERGED",
+        "createdAt": RECENT - 40, "mergedAt": RECENT - 30, "body": "",
+        "author": "alice", "authorHandle": "Alice", "authorBot": False, "reviewers": [],
+    }]})
     graph.query(
-        "MATCH (pr:PR {number:101}), (d:Decision {slug:'catalog-managed'}) "
-        "MERGE (pr)-[:IMPLEMENTS]->(d)"
+        "MATCH (c:Commit {sha:'c-alice-1'}) "
+        "MERGE (f:File {path:'protocol_rfcs/accepted/managed-commits.md'}) "
+        "MERGE (c)-[:TOUCHED]->(f)"
     )
+    _run(graph, "04d_derive_implements_issue_ref")
+    _run(graph, "04e_derive_implements_rfc_doc")
+    _run(graph, "04f_load_implements_keyword", {"rows": [
+        {"pr": 101, "slug": "managed-commits", "pattern": r"\bcoordinated commits?\b"},
+        {"pr": 102, "slug": "managed-commits", "pattern": r"\bcoordinated commits?\b"},
+        {"pr": 102, "slug": "catalog-managed", "pattern": r"\bcatalog[- ]managed\b"},
+    ]})
+    implementations = graph.query(
+        "MATCH (:PR {number:101})-[r:IMPLEMENTS]->(:Decision {slug:'managed-commits'}) "
+        "RETURN r.via, r.confidence, r.sources"
+    ).result_set[0]
+    assert implementations[0] == "issue-ref"
+    assert implementations[1] == "high"
+    assert set(implementations[2]) == {"issue-ref", "rfc-doc", "title-keyword"}
+    assert _count(graph, "(:PR {number:102})-[:IMPLEMENTS {via:'title-keyword', confidence:'low'}]->(:Decision {slug:'managed-commits'})") == 1
+    assert _count(graph, "(:PR {number:102})-[:IMPLEMENTS {via:'title-keyword', confidence:'low'}]->(:Decision {slug:'catalog-managed'})") == 1
+
+    # Replay all evidence sources and verify no duplicates or confidence downgrade.
+    _run(graph, "04d_derive_implements_issue_ref")
+    _run(graph, "04e_derive_implements_rfc_doc")
+    _run(graph, "04f_load_implements_keyword", {"rows": [
+        {"pr": 101, "slug": "managed-commits", "pattern": r"\bcoordinated commits?\b"},
+        {"pr": 102, "slug": "managed-commits", "pattern": r"\bcoordinated commits?\b"},
+        {"pr": 102, "slug": "catalog-managed", "pattern": r"\bcatalog[- ]managed\b"},
+    ]})
+    assert _count(graph, "(:PR)-[:IMPLEMENTS]->(:Decision)") == 3
+    replayed = graph.query(
+        "MATCH (:PR {number:101})-[r:IMPLEMENTS]->(:Decision {slug:'managed-commits'}) "
+        "RETURN r.via, r.confidence, r.sources"
+    ).result_set[0]
+    assert replayed == implementations
+
     _run(graph, "04b_derive_participated_pr")
     _run(graph, "04c_derive_participated_issue")
+    participant_confidence = graph.query(
+        "MATCH (:Person {login:'alice'})-[r:PARTICIPATED_IN]->(:Decision {slug:'catalog-managed'}) "
+        "RETURN r.confidence"
+    ).result_set[0][0]
+    assert participant_confidence == "low"
 
     _run_derives(graph)
     knows = graph.query(

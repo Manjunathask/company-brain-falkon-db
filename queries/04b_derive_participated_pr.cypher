@@ -1,10 +1,11 @@
 // Answers: mark non-bot people who opened or reviewed a PR that implements a decision.
 // Parameters: none.
-// Shape: clear all old derived participation first (04c runs immediately after); MERGE on the person/decision pair makes this path replay-safe, and `via` records the evidence path.
+// Shape: include low-confidence title links because authorship/review is still participation evidence; copy confidence so downstream queries can filter it. 04c upgrades issue participants to high confidence.
 OPTIONAL MATCH ()-[old:PARTICIPATED_IN]->()
 DELETE old
 WITH count(old) AS cleared
-MATCH (p:Person)-[:OPENED|REVIEWED]->(:PR)-[:IMPLEMENTS]->(d:Decision)
+MATCH (p:Person)-[:OPENED|REVIEWED]->(:PR)-[impl:IMPLEMENTS]->(d:Decision)
 WHERE coalesce(p.bot, false) = false
 MERGE (p)-[part:PARTICIPATED_IN]->(d)
-SET part.via = 'pr'
+SET part.confidence = CASE WHEN part.confidence = 'high' THEN 'high' ELSE impl.confidence END,
+    part.via = 'pr'
