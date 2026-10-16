@@ -25,8 +25,8 @@ def default_since() -> int:
     return int((now - timedelta(days=365)).timestamp() * 1000)
 
 
-def _scalar(graph, query: str) -> int:
-    return int(graph.query(query).result_set[0][0])
+def _scalar(graph, query_name: str) -> int:
+    return int(graph.ro_query(load_query(query_name)).result_set[0][0])
 
 
 def build_query_params(since: int, min_shared: int, max_file_commits: int) -> dict[str, dict]:
@@ -48,39 +48,26 @@ def build_query_params(since: int, min_shared: int, max_file_commits: int) -> di
 def _print_sanity(graph) -> None:
     print("\nSanity check")
     print("Top modules by KNOWS edges:")
-    rows = graph.query(
-        "MATCH (:Person)-[k:KNOWS]->(m:Module) "
-        "RETURN m.name, count(k) AS edges ORDER BY edges DESC, m.name LIMIT 10"
-    ).result_set
+    rows = graph.ro_query(load_query("03g_sanity_top_modules")).result_set
     for module, count in rows:
         print(f"  {module}: {count}")
     print("Top components by KNOWS edges:")
-    rows = graph.query(
-        "MATCH (:Person)-[k:KNOWS]->(c:Component) "
-        "RETURN c.name, count(k) AS edges ORDER BY edges DESC, c.name LIMIT 10"
-    ).result_set
+    rows = graph.ro_query(load_query("03h_sanity_top_components")).result_set
     for component, count in rows:
         print(f"  {component}: {count}")
 
-    active = _scalar(graph, "MATCH (p:Person:Active) RETURN count(p)")
+    active = _scalar(graph, "03i_sanity_active_count")
     print(f"Active people: {active}")
 
-    works_count = _scalar(graph, "MATCH ()-[w:WORKS_WITH]->() RETURN count(w)")
+    works_count = _scalar(graph, "03j_sanity_works_count")
     print(f"WORKS_WITH edges: {works_count}")
-    rows = graph.query(
-        "MATCH (a:Person)-[w:WORKS_WITH]->(b:Person) "
-        "RETURN a.login, b.login, w.sharedFiles "
-        "ORDER BY w.sharedFiles DESC, a.login, b.login LIMIT 5"
-    ).result_set
+    rows = graph.ro_query(load_query("03k_sanity_top_pairs")).result_set
     print("Top WORKS_WITH pairs by sharedFiles:")
     for a, b, shared in rows:
         print(f"  {a} -- {b}: {shared}")
 
     print("PARTICIPATED_IN edges per decision:")
-    rows = graph.query(
-        "MATCH (d:Decision) OPTIONAL MATCH (:Person)-[r:PARTICIPATED_IN]->(d) "
-        "RETURN d.title, count(r) AS people ORDER BY d.title"
-    ).result_set
+    rows = graph.ro_query(load_query("03l_sanity_participation")).result_set
     for title, count in rows:
         print(f"  {title}: {count}")
 
@@ -92,7 +79,7 @@ def run_derive(graph, since: int, min_shared: int, max_file_commits: int) -> Non
         result = graph.query(load_query(name), query_params)
         elapsed = time.perf_counter() - started
         created = int(result.relationships_created)
-        total = _scalar(graph, "MATCH ()-[r]->() RETURN count(r)")
+        total = _scalar(graph, "03m_sanity_relationship_count")
         print(f"{name}: relationships created={created}, graph total={total}, elapsed={elapsed:.3f}s")
     _print_sanity(graph)
 

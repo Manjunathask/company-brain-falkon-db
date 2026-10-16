@@ -9,3 +9,7 @@ CREATE INDEX FOR (c:Component) ON (c.name)
 CREATE INDEX FOR (pr:PR) ON (pr.number)
 CREATE INDEX FOR (i:Issue) ON (i.number)
 CREATE INDEX FOR (d:Decision) ON (d.slug)
+
+// Full-text title indexes; FalkorDB 4.22 accepts (label, property) and queryNodes(label, text).
+CALL db.idx.fulltext.createNodeIndex('Decision', 'title')
+CALL db.idx.fulltext.createNodeIndex('PR', 'title')

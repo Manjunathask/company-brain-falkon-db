@@ -23,8 +23,8 @@ def read_rows(name: str) -> list[dict]:
 
 
 def _counts(graph) -> str:
-    node_count = graph.query("MATCH (n) RETURN count(n)").result_set[0][0]
-    edge_count = graph.query("MATCH ()-[r]->() RETURN count(r)").result_set[0][0]
+    counts = graph.ro_query(load_query("00_counts")).result_set[0]
+    node_count, edge_count = counts
     return f"nodes={node_count}, relationships={edge_count}"
 
 

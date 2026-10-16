@@ -16,9 +16,14 @@ Build:
    tool_results_message(results). Two implementations:
    a) AnthropicLLM (official `anthropic` SDK, already installed: 1.15.0; read its source under
       .venv/Lib/site-packages/anthropic for exact names, do not guess):
-      - model from env AGENT_MODEL, default "claude-opus-5-5"; effort from env AGENT_EFFORT, default
-        "medium", sent as output_config={"effort": ...}; do not send `thinking` (adaptive is the default on
-        this model; "disabled" and budget_tokens are rejected with 400); max_tokens 16000; non-streaming.
+      - client: anthropic.Anthropic(); if env ANTHROPIC_WORKSPACE_ID is set, pass
+        default_headers={"anthropic-workspace-id": <it>} (the developer's key is not workspace-scoped, and the
+        API then requires this header; the SDK lists it in _CLIENT_LEVEL_HEADER_PARAMS in _client.py).
+      - model from env AGENT_MODEL, default "claude-sonnet-5-5" (developer's choice: cheaper and fast enough for
+        tool selection over Cypher results; "claude-opus-5-5" is the drop-in alternative). Effort from env
+        AGENT_EFFORT, default "medium", always sent explicitly as output_config={"effort": ...}. Do not send
+        `thinking` (adaptive is the default on both models; {"type": "disabled"} and budget_tokens return 400).
+        max_tokens 16000; non-streaming.
       - tools: name, description (from the tool docstring), input_schema with additionalProperties: false
         and required, and "strict": True. Keep the tool list in a fixed order.
       - tool_choice must stay auto (forcing "any"/"tool" returns 400 on this model).

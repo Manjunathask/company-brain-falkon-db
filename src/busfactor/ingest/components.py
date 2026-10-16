@@ -15,7 +15,7 @@ from pathlib import PurePosixPath
 import re
 from collections import Counter
 
-from busfactor.db import ROOT, get_graph
+from busfactor.db import ROOT, get_graph, load_query
 
 SOURCE_PATH = re.compile(
     r"^(?P<project>.+?)/src/(?P<phase>main|test)/(?P<language>scala(?:-[^/]+)?|java|python|resources)/(?P<rest>.+)$"
@@ -124,13 +124,8 @@ def main() -> int:
     graph = get_graph()
     since = int((datetime.now(timezone.utc) - timedelta(days=730)).timestamp() * 1000)
     try:
-        rows = graph.query(
-            "MATCH (:Person)-[:AUTHORED]->(commit:Commit)-[:TOUCHED]->(f:File)-[:IN_COMPONENT]->(c:Component) "
-            "WHERE commit.ts > $since "
-            "RETURN c.name, count(*) AS touches ORDER BY touches DESC, c.name LIMIT 40",
-            {"since": since},
-        ).result_set
-        component_count = graph.query("MATCH (c:Component) RETURN count(c)").result_set[0][0]
+        rows = graph.ro_query(load_query("01g_component_activity"), {"since": since}).result_set
+        component_count = graph.ro_query(load_query("01h_component_count")).result_set[0][0]
     finally:
         graph.client.close()
     print(f"Components: {component_count}")

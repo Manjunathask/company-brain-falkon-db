@@ -69,7 +69,7 @@ def _json(name: str) -> list[dict]:
 
 
 def _pr_titles(graph) -> list[dict]:
-    rows = graph.query("MATCH (pr:PR) RETURN pr.number, pr.title").result_set
+    rows = graph.ro_query(load_query("04g_link_pr_titles")).result_set
     if rows:
         return [{"number": row[0], "title": row[1] or ""} for row in rows]
     # This path keeps the matcher useful before GitHub PR nodes have been loaded.
@@ -86,26 +86,16 @@ def _pr_titles(graph) -> list[dict]:
 
 
 def _print_results(graph, matches: list[dict], rfcs: list[dict]) -> None:
-    via_counts = graph.query(
-        "MATCH ()-[r:IMPLEMENTS]->() RETURN r.via, count(r) ORDER BY r.via"
-    ).result_set
+    via_counts = graph.ro_query(load_query("04h_implements_counts_by_via")).result_set
     print("IMPLEMENTS edges per via:")
     for via, count in via_counts:
         print(f"  {via}: {count}")
 
-    by_decision = graph.query(
-        "MATCH (d:Decision) OPTIONAL MATCH (:PR)-[r:IMPLEMENTS]->(d) "
-        "RETURN d.slug, count(r) ORDER BY d.slug"
-    ).result_set
+    by_decision = graph.ro_query(load_query("04i_implements_counts_by_decision")).result_set
     print("IMPLEMENTS edges per decision:")
     for slug, count in by_decision:
         print(f"  {slug}: {count}")
-        recent = graph.query(
-            "MATCH (pr:PR)-[r:IMPLEMENTS]->(:Decision {slug:$slug}) "
-            "RETURN pr.number, pr.title, pr.mergedAt, r.via, r.confidence "
-            "ORDER BY pr.mergedAt DESC, pr.number DESC LIMIT 3",
-            {"slug": slug},
-        ).result_set
+        recent = graph.ro_query(load_query("04j_recent_implements"), {"slug": slug}).result_set
         for number, title, merged_at, via, confidence in recent:
             print(f"    #{number} ({merged_at or 'date unknown'}, {via}/{confidence}): {title}")
 
@@ -129,12 +119,7 @@ def run(graph) -> None:
     rfcs = validate_keywords()
     matches = title_matches(_pr_titles(graph), rfcs)
     # Remove stale low-only edges so changed keyword patterns are reflected on replay.
-    graph.query(
-        "MATCH ()-[r:IMPLEMENTS]->() "
-        "WHERE size(coalesce(r.sources, [])) = 1 "
-        "AND 'title-keyword' IN coalesce(r.sources, []) "
-        "DELETE r"
-    )
+    graph.query(load_query("04k_delete_stale_keyword_links"))
 
     for name in ("04d_derive_implements_issue_ref", "04e_derive_implements_rfc_doc"):
         result = graph.query(load_query(name))
