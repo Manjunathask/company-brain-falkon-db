@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from concurrent.futures import ThreadPoolExecutor
 import json
 import time
 import uuid
@@ -22,9 +23,9 @@ TOOL_ORDER = ["bus_factor", "bus_factor_component", "departure_impact", "departu
               "remember_correction"]
 PARAMS = {
     "bus_factor": {"since":"integer", "minCommits":"integer", "minTotal":"integer"},
-    "bus_factor_component": {"since":"integer", "minCommits":"integer", "minTotal":"integer"},
-    "departure_impact": {"login":"string", "since":"integer", "minCommits":"integer"},
-    "departure_files": {"login":"string", "since":"integer"},
+    "bus_factor_component": {"since":"integer", "minCommits":"integer", "minTotal":"integer", "includeTestResources":"boolean"},
+    "departure_impact": {"login":"string", "since":"integer", "minCommits":"integer", "componentPrefix":"string", "includeTestResources":"boolean"},
+    "departure_files": {"login":"string", "since":"integer", "componentPrefix":"string", "includeTestResources":"boolean"},
     "orphaned_decisions": {"login":"string", "minConfidence":"string"},
     "decision_share": {"login":"string", "minShare":"number", "minConfidence":"string"},
     "successor": {"login":"string", "component":"string", "since":"integer"},
@@ -62,7 +63,8 @@ def _validate(name: str, params: object) -> tuple[dict | None, str | None]:
     if missing: return None, f"Missing required fields: {', '.join(sorted(missing))}"
     for key, value in params.items():
         kind = PARAMS[name][key]
-        valid = (isinstance(value, str) if kind == "string" else
+        valid = (isinstance(value, bool) if kind == "boolean" else
+                 isinstance(value, str) if kind == "string" else
                  isinstance(value, (int, float)) and not isinstance(value, bool) if kind == "number" else
                  isinstance(value, int) and not isinstance(value, bool))
         if not valid: return None, f"{key} must be {kind}"
@@ -147,8 +149,7 @@ def ask(question: str, user: str, session_id: str | None = None, llm=None, *, me
         messages.append(llm.assistant_message(step))
         if step.stop == "tool_use" and rounds < max_rounds:
             rounds += 1
-            results = []
-            for call in step.tool_calls:
+            def execute_call(call):
                 name, call_id, raw = call.get("name", ""), call.get("id", str(uuid.uuid4())), call.get("input", {})
                 params, error = _validate(name, raw)
                 start = time.perf_counter()
@@ -158,25 +159,33 @@ def ask(question: str, user: str, session_id: str | None = None, llm=None, *, me
                         result = memory.store_correction(**params)
                     else:
                         result = graph_tools.TOOLS[name](**params)
-                    successful_tool_count += 1
                     elapsed = round((time.perf_counter() - start) * 1000, 2)
-                    rows = result.get("rows", [])
-                    trail.append({"tool":name, "params":params, "cypher":result.get("cypher", ""),
-                                  "row_count":len(rows), "ms":elapsed})
-                    _merge_graph(evidence, result.get("graph", {}))
-                    entities.update(entity_keys(result.get("graph", {})))
-                    payload = {"tool":name, "row_count":len(rows), "rows":_compact_rows(rows)}
-                    if len(rows) > MAX_TOOL_RESULT_ROWS:
-                        payload["truncated"] = len(rows) - MAX_TOOL_RESULT_ROWS
-                    tool_result = {"id":call_id, "content":json.dumps(payload, ensure_ascii=False, default=str)}
-                    results.append(tool_result)
-                    trail[-1]["tool_result_chars"] = _tool_result_chars(tool_result)
+                    return {"id":call_id,"name":name,"params":params,"result":result,"elapsed":elapsed}
                 except Exception as exc:
                     elapsed = round((time.perf_counter() - start) * 1000, 2)
-                    tool_result = {"id":call_id, "content":str(exc), "is_error":True}
+                    return {"id":call_id,"name":name or "unknown","params":raw,"error":str(exc),"elapsed":elapsed}
+            with ThreadPoolExecutor(max_workers=6) as pool:
+                completed = list(pool.map(execute_call, step.tool_calls))
+            results = []
+            for item in completed:
+                if "error" in item:
+                    tool_result = {"id":item["id"],"content":item["error"],"is_error":True}
                     results.append(tool_result)
-                    trail.append({"tool":name or "unknown", "params":raw, "cypher":"", "row_count":0, "ms":elapsed})
-                    trail[-1]["tool_result_chars"] = _tool_result_chars(tool_result)
+                    trail.append({"tool":item["name"],"params":item["params"],"cypher":"","row_count":0,"ms":item["elapsed"]})
+                else:
+                    successful_tool_count += 1
+                    result = item["result"]
+                    rows = result.get("rows", [])
+                    trail.append({"tool":item["name"],"params":item["params"],"cypher":result.get("cypher", ""),
+                                  "row_count":len(rows),"ms":item["elapsed"]})
+                    _merge_graph(evidence, result.get("graph", {}))
+                    entities.update(entity_keys(result.get("graph", {})))
+                    payload = {"tool":item["name"],"row_count":len(rows),"rows":_compact_rows(rows)}
+                    if len(rows) > MAX_TOOL_RESULT_ROWS:
+                        payload["truncated"] = len(rows) - MAX_TOOL_RESULT_ROWS
+                    tool_result = {"id":item["id"],"content":json.dumps(payload, ensure_ascii=False, default=str)}
+                    results.append(tool_result)
+                trail[-1]["tool_result_chars"] = _tool_result_chars(tool_result)
             messages.append(llm.tool_results_message(results))
             if rounds >= max_rounds:
                 stop_reason = "round_limit"

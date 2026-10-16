@@ -4,7 +4,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 import re
 
-from busfactor.db import ROOT, load_query
+from busfactor.db import get_client, load_query
 
 ENTITY_PREFIXES = {"Person": "person", "Component": "component", "Module": "module", "Decision": "decision"}
 
@@ -30,13 +30,8 @@ class Memory:
     def __init__(self, user: str, graph=None):
         self.name = memory_graph_name(user)
         if graph is None:
-            from falkordb import FalkorDB
-            import os
-            client = FalkorDB(host=os.getenv("FALKORDB_HOST", "localhost"),
-                              port=int(os.getenv("FALKORDB_PORT", "6379")),
-                              password=os.getenv("FALKORDB_PASSWORD") or None)
-            graph = client.select_graph(self.name)
-            self.client = client
+            graph = get_client().select_graph(self.name)
+            self.client = get_client()
         else:
             self.client = None
         self.graph = graph

@@ -4,11 +4,14 @@ from __future__ import annotations
 from collections import Counter
 from datetime import datetime, timezone
 import os
+import time
+import uuid
+from threading import Lock
 
-from falkordb import FalkorDB
-
-from busfactor.db import load_query
+from busfactor.db import get_client, load_query
 from busfactor.graphjson import node_dict, rel_dict
+
+_COPY_LOCK = Lock()
 
 
 def _read_rows(graph, query_name: str, params: dict | None = None):
@@ -18,21 +21,28 @@ def _read_rows(graph, query_name: str, params: dict | None = None):
 
 def simulate_departure(login: str) -> dict:
     """Copy the graph, remove a person's Active label on the copy, and measure the collaboration impact."""
-    client = FalkorDB(
-        host=os.getenv("FALKORDB_HOST", "localhost"),
-        port=int(os.getenv("FALKORDB_PORT", "6379")),
-        password=os.getenv("FALKORDB_PASSWORD") or None,
-    )
+    client = get_client()
     source_name = os.getenv("FALKORDB_GRAPH", "delta")
     safe_login = "".join(ch for ch in login.lower() if ch.isalnum() or ch in "_-")
-    graph_name = "whatif_" + safe_login + "_" + datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S%f")
+    graph_name = "whatif_" + safe_login + "_" + datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S%f") + "_" + uuid.uuid4().hex[:12]
     copy_command = f"GRAPH.COPY {source_name} {graph_name}"
     delete_command = f"GRAPH.DELETE {graph_name}"
     cypher: list[str] = [copy_command]
     try:
         # GRAPH.COPY is a native command, and the only writes below target this disposable graph.
-        client.connection.execute_command("GRAPH.COPY", source_name, graph_name)
+        # FalkorDB forks one graph copy at a time; serialize only the native copy operation.
+        with _COPY_LOCK:
+            client.connection.execute_command("GRAPH.COPY", source_name, graph_name)
         graph = client.select_graph(graph_name)
+        deadline = time.monotonic() + 5.0
+        while True:
+            try:
+                graph.ro_query("MATCH (n) RETURN count(n)")
+                break
+            except Exception as exc:
+                if time.monotonic() >= deadline:
+                    raise RuntimeError(f"Copied graph {graph_name!r} did not become queryable within 5 seconds") from exc
+                time.sleep(0.05)
 
         before_rows = _read_rows(graph, "09c_whatif_membership")
         before = {person: group for person, group in before_rows}
@@ -90,5 +100,5 @@ def simulate_departure(login: str) -> dict:
     finally:
         try:
             client.connection.execute_command("GRAPH.DELETE", graph_name)
-        finally:
-            client.close()
+        except Exception:
+            pass

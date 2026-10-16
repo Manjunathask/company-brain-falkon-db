@@ -32,7 +32,7 @@ A Component is a finer-grained code area beneath a Module, assigned from source 
 
 ## Agent
 
-Ask a graph question with `uv run python -m busfactor.agent ask "What if huan233usc leaves?" --user <github-login>`. Configure `AGENT_PROVIDER=anthropic` (default) with `ANTHROPIC_API_KEY`; `AGENT_MODEL` defaults to `claude-sonnet-5-5` and `AGENT_EFFORT` to `medium`. Set `AGENT_PROVIDER=scripted` and `AGENT_SCRIPT` to a JSON list of steps for deterministic, no-network runs. The loop calls FalkorDB tools and returns the tool trail and merged graph evidence with the answer.
+Ask a graph question with `uv run python -m busfactor.agent ask "What if huan233usc leaves?" --user <github-login>`. Configure `AGENT_PROVIDER=anthropic` (default) with `ANTHROPIC_API_KEY` (and `ANTHROPIC_WORKSPACE_ID` if your key is not scoped to a workspace); `AGENT_MODEL` defaults to `claude-sonnet-5-5` and `AGENT_EFFORT` to `medium`. Why Sonnet at medium: on five demo questions it took 69 s and $0.37 in total, against 112 s and $1.17 for Opus 5.5 with the same conclusions; low effort gave up on one ambiguous question (results and script in [docs/eval/](docs/eval/)). Set `AGENT_PROVIDER=scripted` and `AGENT_SCRIPT` to a JSON list of steps for deterministic, no-network runs. The loop calls FalkorDB tools and returns the tool trail and merged graph evidence with the answer.
 
 ## Run the app
 
@@ -45,6 +45,8 @@ uv run python -m busfactor.link_decisions
 uv run python -m busfactor.derive
 uv run python -m busfactor.api
 ```
+
+FalkorDB is reached at `127.0.0.1` by default, not `localhost`: Docker publishes the port on IPv4 loopback, and on Windows a `localhost` connection tries IPv6 first and costs about 2 s per new connection.
 
 Open [http://127.0.0.1:8000](http://127.0.0.1:8000). The API binds to `127.0.0.1` by default; set `HOST` and `PORT` to override it. The browser only calls this local API; FalkorDB credentials and any model API key stay on the server. Each answer includes the graph evidence and the Cypher for every tool call under “How I know”. The Departure simulator combines the collaboration what-if, component exposure, orphaned files, decision share, and successor evidence in one panel.
 

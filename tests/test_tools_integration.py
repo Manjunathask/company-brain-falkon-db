@@ -1,5 +1,6 @@
 ﻿"""Integration coverage for the WP6 graph-tool registry."""
 import os
+from concurrent.futures import ThreadPoolExecutor
 import pytest
 from falkordb import FalkorDB
 from redis.exceptions import RedisError, ResponseError
@@ -19,7 +20,7 @@ def _delete(client):
 @pytest.fixture
 def graph(monkeypatch):
     try:
-        client = FalkorDB(host=os.getenv("FALKORDB_HOST", "localhost"), port=int(os.getenv("FALKORDB_PORT", "6379")), password=os.getenv("FALKORDB_PASSWORD") or None)
+        client = FalkorDB(host=os.getenv("FALKORDB_HOST", "127.0.0.1"), port=int(os.getenv("FALKORDB_PORT", "6379")), password=os.getenv("FALKORDB_PASSWORD") or None)
         client.connection.ping()
     except (RedisError, OSError, ConnectionError) as exc:
         pytest.skip(f"FalkorDB is unreachable: {exc}")
@@ -129,7 +130,7 @@ def test_decision_share_counts_pr_ownership_and_lists_active_openers(graph):
 
 
 def test_simulate_departure_splits_group_and_cleans_copy(graph):
-    client = FalkorDB(host=os.getenv("FALKORDB_HOST", "localhost"), port=int(os.getenv("FALKORDB_PORT", "6379")), password=os.getenv("FALKORDB_PASSWORD") or None)
+    client = FalkorDB(host=os.getenv("FALKORDB_HOST", "127.0.0.1"), port=int(os.getenv("FALKORDB_PORT", "6379")), password=os.getenv("FALKORDB_PASSWORD") or None)
     delta = client.select_graph('delta')
     try:
         delta_before = delta.query("MATCH (n) RETURN count(n)").result_set[0][0]
@@ -150,6 +151,44 @@ def test_simulate_departure_splits_group_and_cleans_copy(graph):
     if delta_before is not None:
         assert delta.query("MATCH (n) RETURN count(n)").result_set[0][0] == delta_before
     client.close()
+
+
+def test_two_simulations_can_copy_same_graph_concurrently_and_clean_up(graph):
+    from busfactor.db import get_client
+
+    client = get_client()
+    names_before = set(client.connection.execute_command("GRAPH.LIST"))
+    fixture_before = _snapshot(graph)
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        futures = [pool.submit(tools.simulate_departure, "alice") for _ in range(2)]
+        results = [future.result(timeout=20) for future in futures]
+    assert [result["rows"][0]["login"] for result in results] == ["alice", "alice"]
+    assert all(result["graph"]["nodes"] for result in results)
+    assert set(client.connection.execute_command("GRAPH.LIST")) == names_before
+    assert _snapshot(graph) == fixture_before
+
+
+def test_departure_scope_filters_and_component_prefix(graph):
+    graph.query("""
+        MATCH (alice:Person {login:'alice'}), (comp:Component {name:'spark/test'})
+        CREATE (fixture:Component {name:'spark/test/(test-resources)'})
+        CREATE (alice)-[k:KNOWS]->(fixture) SET k.commits=4,k.lastTouched=1800000000000
+    """)
+    default = tools.departure_impact("alice", since=0, minCommits=1)
+    scoped = tools.departure_impact("alice", since=0, minCommits=1, componentPrefix="spark/test")
+    included = tools.departure_impact("alice", since=0, minCommits=1, includeTestResources=True)
+    assert "spark/test/(test-resources)" not in [row["component"] for row in default["rows"]]
+    assert {row["component"] for row in scoped["rows"]} == {"spark/test"}
+    assert "spark/test/(test-resources)" in [row["component"] for row in included["rows"]]
+
+
+def test_find_entity_matches_partial_login_and_ranks_exact_first(graph):
+    graph.query("CREATE (:Person {login:'alice2',name:'Alice Two',bot:false})")
+    results = tools.find_entity("alice")['rows']
+    people = [row for row in results if row["kind"] == "person"]
+    assert people[0]["key"] == "alice"
+    assert next(row for row in people if row["key"] == "alice")["score"] == 2.0
+    assert next(row for row in people if row["key"] == "alice2")["score"] == 1.5
 
 
 def _snapshot(graph):

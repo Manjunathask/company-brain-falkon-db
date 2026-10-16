@@ -1,8 +1,10 @@
 // Answers: group files touched by a departing person that no other active, non-bot person touched recently.
-// Parameters: $login is the departing person; $since is the activity-window start in epoch milliseconds.
-// Shape: collect distinct other active editors per file before filtering; deleted files and bulk commits are excluded because neither indicates current, focused knowledge risk.
+// Parameters: $login is the departing person; $since is the activity-window start in epoch milliseconds; $componentPrefix optionally narrows component names; $includeTestResources includes fixture-only components when true.
+// Shape: collect distinct other active editors per file before filtering, apply explicit scope filters, and exclude deleted files and bulk commits from current knowledge risk.
 MATCH (gone:Person {login: $login})-[:AUTHORED]->(c:Commit)-[:TOUCHED]->(f:File)-[:IN_COMPONENT]->(component:Component)
 WHERE c.ts > $since AND coalesce(gone.bot, false) = false AND coalesce(c.bulk, false) = false AND coalesce(f.exists, true) = true
+  AND ($componentPrefix = '' OR component.name STARTS WITH $componentPrefix)
+  AND ($includeTestResources OR NOT component.name ENDS WITH '/(test-resources)')
 WITH gone, f, component
 OPTIONAL MATCH (other:Person:Active)-[:AUTHORED]->(otherCommit:Commit)-[:TOUCHED]->(f)
 WHERE other <> gone AND otherCommit.ts > $since AND coalesce(other.bot, false) = false AND coalesce(otherCommit.bulk, false) = false

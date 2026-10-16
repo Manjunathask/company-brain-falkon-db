@@ -17,7 +17,7 @@ COPY_NAME = "bf_check_copy"
 def _client() -> FalkorDB:
     load_dotenv(ROOT / ".env")
     return FalkorDB(
-        host=os.getenv("FALKORDB_HOST", "localhost"),
+        host=os.getenv("FALKORDB_HOST", "127.0.0.1"),
         port=int(os.getenv("FALKORDB_PORT", "6379")),
         password=os.getenv("FALKORDB_PASSWORD") or None,
     )

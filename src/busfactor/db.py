@@ -1,6 +1,7 @@
 """Small FalkorDB connection and query-file helpers."""
 
 from itertools import islice
+from functools import lru_cache
 from pathlib import Path
 import os
 
@@ -12,14 +13,21 @@ ROOT = Path(__file__).resolve().parents[2]
 load_dotenv(ROOT / ".env")
 
 
-def get_graph():
-    """Return the configured FalkorDB graph using the official Python client."""
-    client = FalkorDB(
-        host=os.getenv("FALKORDB_HOST", "localhost"),
+@lru_cache(maxsize=1)
+def get_client() -> FalkorDB:
+    """Return the process-wide FalkorDB client."""
+    # Docker publishes FalkorDB on IPv4 loopback; localhost tries IPv6 first on Windows and stalls.
+    return FalkorDB(
+        host=os.getenv("FALKORDB_HOST", "127.0.0.1"),
         port=int(os.getenv("FALKORDB_PORT", "6379")),
         password=os.getenv("FALKORDB_PASSWORD") or None,
     )
-    return client.select_graph(os.getenv("FALKORDB_GRAPH", "delta"))
+
+
+def get_graph(name: str | None = None):
+    """Return a graph handle using the process-wide FalkorDB client."""
+    client = get_client()
+    return client.select_graph(name or os.getenv("FALKORDB_GRAPH", "delta"))
 
 
 def load_query(name: str) -> str:

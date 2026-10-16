@@ -21,7 +21,7 @@ def _delete(client, name):
 @pytest.fixture
 def graphs():
     try:
-        client = FalkorDB(host=os.getenv("FALKORDB_HOST","localhost"),port=int(os.getenv("FALKORDB_PORT","6379")),password=os.getenv("FALKORDB_PASSWORD") or None)
+        client = FalkorDB(host=os.getenv("FALKORDB_HOST","127.0.0.1"),port=int(os.getenv("FALKORDB_PORT","6379")),password=os.getenv("FALKORDB_PASSWORD") or None)
         client.connection.ping()
     except (RedisError,OSError,ConnectionError) as exc:
         pytest.skip(f"FalkorDB is unreachable: {exc}")

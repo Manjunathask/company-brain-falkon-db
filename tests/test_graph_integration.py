@@ -29,7 +29,7 @@ def _delete_graph(client: FalkorDB) -> None:
 def graph():
     try:
         client = FalkorDB(
-            host=os.getenv("FALKORDB_HOST", "localhost"),
+            host=os.getenv("FALKORDB_HOST", "127.0.0.1"),
             port=int(os.getenv("FALKORDB_PORT", "6379")),
             password=os.getenv("FALKORDB_PASSWORD") or None,
         )
@@ -330,13 +330,13 @@ def test_component_bus_factor_and_orphaned_file_queries(graph):
     """)
     _run(graph, "03c_derive_knows_component")
     row = graph.query(load_query("05b_bus_factor_component"), {
-        "since": SINCE, "minCommits": 1, "minTotal": 4,
+        "since": SINCE, "minCommits": 1, "minTotal": 4, "includeTestResources": False,
     }).result_set
     answer = next(item for item in row if item[0] == "spark/wp5-bus")
     assert answer[1] == 1
     assert answer[4:6] == [2, 4]
     filtered = graph.query(load_query("05b_bus_factor_component"), {
-        "since": SINCE, "minCommits": 1, "minTotal": 5,
+        "since": SINCE, "minCommits": 1, "minTotal": 5, "includeTestResources": False,
     }).result_set
     assert not any(item[0] == "spark/wp5-bus" for item in filtered)
     assert filtered[0][6] >= 1
@@ -365,7 +365,8 @@ def test_deleted_file_is_not_reported_and_bulk_commit_stays_traceable(graph):
     _run(graph, "03_derive_knows")
     _run(graph, "03c_derive_knows_component")
     assert graph.ro_query("MATCH (:Person {login:'wp6gone'})-[k:KNOWS]->(:Component {name:'wp6/deleted'}) RETURN count(k)").result_set[0][0] == 0
-    orphaned = graph.query(load_query("06b_departure_files"), {"login":"wp6gone", "since":SINCE}).result_set
+    orphaned = graph.query(load_query("06b_departure_files"), {"login":"wp6gone", "since":SINCE,
+                                  "componentPrefix":"", "includeTestResources":False}).result_set
     assert not any("Removed.scala" in str(row) for row in orphaned)
     assert graph.ro_query("MATCH (c:Commit {sha:'wp6-bulk'}) RETURN c.bulk").result_set[0][0] is True
     trace = graph.ro_query(load_query("10_decision_trace"), {"path":"wp6/bulk/A.scala", "limit":5}).result_set
@@ -395,7 +396,7 @@ def test_deleted_file_is_not_reported_and_bulk_commit_stays_traceable(graph):
     """)
     _run(graph, "03b_derive_last_seen", {"since": SINCE})
     rows = graph.query(load_query("06b_departure_files"), {
-        "login": "wp5gone", "since": SINCE,
+        "login": "wp5gone", "since": SINCE, "componentPrefix":"", "includeTestResources":False,
     }).result_set
     files = next(item for item in rows if item[0] == "spark/wp5-files")
     assert files[1] == 2

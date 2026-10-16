@@ -18,10 +18,15 @@ def _result(tool, params, nodes=(), edges=(), rows=()):
 
 def test_loop_parallel_calls_are_returned_in_one_tool_message_and_deduplicate(monkeypatch):
     from busfactor.agent import loop
+    from threading import Barrier
+    barrier = Barrier(2)
     node = {"id":1,"label":"Person","key":"huan233usc","props":{}}
     edge = {"source":1,"target":2,"type":"KNOWS","props":{}}
-    monkeypatch.setitem(loop.graph_tools.TOOLS, "departure_impact", lambda **p: _result("departure_impact",p,[node],[edge],[{"component":"kernel"}]))
-    monkeypatch.setitem(loop.graph_tools.TOOLS, "departure_files", lambda **p: _result("departure_files",p,[node],[edge],[{"component":"kernel"}]))
+    def run_parallel(name, **params):
+        barrier.wait(timeout=2)
+        return _result(name,params,[node],[edge],[{"component":"kernel"}])
+    monkeypatch.setitem(loop.graph_tools.TOOLS, "departure_impact", lambda **p: run_parallel("departure_impact", **p))
+    monkeypatch.setitem(loop.graph_tools.TOOLS, "departure_files", lambda **p: run_parallel("departure_files", **p))
     llm = ScriptedLLM([
         Step("tool_use", tool_calls=[{"id":"a","name":"departure_impact","input":{"login":"huan233usc"}},
                                      {"id":"b","name":"departure_files","input":{"login":"huan233usc"}}]),

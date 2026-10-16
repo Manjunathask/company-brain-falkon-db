@@ -334,7 +334,7 @@ For each reported Module, the query ranks eligible KNOWS edges by commit count a
 
 **What it answers:** calculate how many people cover half of recent commit expertise in each Component.
 
-**Parameters:** $since is the activity-window start in epoch milliseconds; $minCommits is the minimum person expertise; $minTotal is the minimum component commit total to report.
+**Parameters:** $since is the activity-window start in epoch milliseconds; $minCommits is the minimum person expertise; $minTotal is the minimum component commit total to report; $includeTestResources defaults to false.
 
 This applies the same half-coverage calculation at Component level. Component-level results expose the narrower areas that can be hidden inside a Module.
 
@@ -350,7 +350,7 @@ For each reported Component, the query ranks eligible KNOWS edges and retains th
 
 **What it answers:** classify the departing person's recent Component expertise by the active experts who remain.
 
-**Parameters:** $login is the departing person; $since is the activity-window start in epoch milliseconds; $minCommits is the minimum remaining expertise.
+**Parameters:** $login is the departing person; $since is the activity-window start in epoch milliseconds; $minCommits is the minimum remaining expertise; $componentPrefix optionally narrows component names; $includeTestResources defaults to false.
 
 This lists Components known by the departing person and counts active non-bot experts who remain. Zero remaining experts means orphaned expertise.
 
@@ -366,7 +366,7 @@ The query returns a KNOWS path from the departing person to every affected Compo
 
 **What it answers:** group files touched by a departing person that no other active, non-bot person touched recently.
 
-**Parameters:** $login is the departing person; $since is the activity-window start in epoch milliseconds.
+**Parameters:** $login is the departing person; $since is the activity-window start in epoch milliseconds; $componentPrefix optionally narrows component names; $includeTestResources defaults to false.
 
 This finds recently touched, extant files touched by focused commits that no other active non-bot person edited. Deleted files retain their TOUCHED history but cannot count as current knowledge at risk.
 
@@ -496,7 +496,7 @@ The query follows WORKS_WITH in either direction from the departing person and f
 
 **Parameters:** $path is the exact File.path; $limit is the maximum paths.
 
-Starting at the requested file, this path walks backward through a commit and PR into a decision and its RFC issue. The result includes the IMPLEMENTS confidence and source, preferring stronger links before recency.
+Starting at the requested file, this path walks backward through a commit and PR into a decision and its RFC issue. It returns explicit readable properties (file path, commit SHA/time, PR number/title, decision slug/title/status, confidence/source, and issue number) beside the renderable path, preferring stronger links before recency.
 
 ## `10b_why_not.cypher`
 
@@ -552,7 +552,7 @@ This returns each Module, its declared owners, and its observed experts as a sma
 
 **Parameters:** $text is the case-insensitive query string; $limit caps results per entity type.
 
-This searches case-folded logins and names, Module and Component names, Decision titles and slugs, and file path suffixes. All candidates are graph nodes with typed keys so later tools can resolve them.
+This searches case-folded logins (including partial matches), names, Module and Component names, Decision titles and slugs, and file path suffixes. Exact logins rank first, then login prefixes, then other matches. All candidates are graph nodes with typed keys so later tools can resolve them.
 
 ## `13_find_entity_graph.cypher`
 

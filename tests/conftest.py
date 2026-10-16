@@ -10,7 +10,7 @@ from redis.exceptions import RedisError, ResponseError
 def graph():
     graph_name = "bf_api_test"
     try:
-        client = FalkorDB(host=os.getenv("FALKORDB_HOST", "localhost"),
+        client = FalkorDB(host=os.getenv("FALKORDB_HOST", "127.0.0.1"),
                           port=int(os.getenv("FALKORDB_PORT", "6379")),
                           password=os.getenv("FALKORDB_PASSWORD") or None)
         client.connection.ping()

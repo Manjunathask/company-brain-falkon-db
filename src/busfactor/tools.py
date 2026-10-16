@@ -16,6 +16,7 @@ DEFAULTS = {
     "minConfidence": "low",
     "minShare": 0.3,
     "driftMinConfidence": "high",
+    "includeTestResources": False,
 }
 GRAPH_KEY_MAP = {
     "05_bus_factor": {"modules": "module", "people": "topExpert"},
@@ -138,17 +139,20 @@ def bus_factor(since: int | None = None, minCommits: int | None = None, minTotal
     """Report module bus factors from recent non-bot commit expertise."""
     return _run("05_bus_factor", {**DEFAULTS, "since": since or DEFAULTS["since"], "minCommits": minCommits or DEFAULTS["minCommits"], "minTotal": minTotal or DEFAULTS["minTotal"]})
 
-def bus_factor_component(since: int | None = None, minCommits: int | None = None, minTotal: int | None = None) -> dict:
+def bus_factor_component(since: int | None = None, minCommits: int | None = None, minTotal: int | None = None,
+                         includeTestResources: bool = False) -> dict:
     """Report the number of recent non-bot experts needed to cover half of each Component's commits."""
-    return _run("05b_bus_factor_component", {**DEFAULTS, "since": since or DEFAULTS["since"], "minCommits": minCommits or DEFAULTS["minCommits"], "minTotal": minTotal or DEFAULTS["minTotal"]})
+    return _run("05b_bus_factor_component", {**DEFAULTS, "since": since or DEFAULTS["since"], "minCommits": minCommits or DEFAULTS["minCommits"], "minTotal": minTotal or DEFAULTS["minTotal"], "includeTestResources": includeTestResources})
 
-def departure_impact(login: str, since: int | None = None, minCommits: int | None = None) -> dict:
+def departure_impact(login: str, since: int | None = None, minCommits: int | None = None,
+                     componentPrefix: str = "", includeTestResources: bool = False) -> dict:
     """Show Components where this active maintainer has expertise and how many active experts remain."""
-    return _run("06_departure_impact", {"login":login,"since":since or DEFAULTS["since"],"minCommits":minCommits or DEFAULTS["minCommits"]})
+    return _run("06_departure_impact", {"login":login,"since":since or DEFAULTS["since"],"minCommits":minCommits or DEFAULTS["minCommits"],"componentPrefix":componentPrefix,"includeTestResources":includeTestResources})
 
-def departure_files(login: str, since: int | None = None) -> dict:
+def departure_files(login: str, since: int | None = None, componentPrefix: str = "",
+                    includeTestResources: bool = False) -> dict:
     """Find recent files touched by this person that no other active non-bot person edited."""
-    return _run("06b_departure_files", {"login":login,"since":since or DEFAULTS["since"]})
+    return _run("06b_departure_files", {"login":login,"since":since or DEFAULTS["since"],"componentPrefix":componentPrefix,"includeTestResources":includeTestResources})
 
 def orphaned_decisions(login: str, minConfidence: str | None = None) -> dict:
     """Find decisions where this person's participation is the only active participation at the chosen confidence."""
@@ -200,7 +204,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Run a Bus Factor graph tool")
     parser.add_argument("tool", choices=TOOLS)
     parser.add_argument("--login"); parser.add_argument("--component"); parser.add_argument("--path"); parser.add_argument("--slug"); parser.add_argument("--text")
-    parser.add_argument("--since", type=int); parser.add_argument("--minCommits", type=int); parser.add_argument("--minTotal", type=int); parser.add_argument("--minConfidence"); parser.add_argument("--minShare", type=float); parser.add_argument("--limit", type=int)
+    parser.add_argument("--since", type=int); parser.add_argument("--minCommits", type=int); parser.add_argument("--minTotal", type=int); parser.add_argument("--minConfidence"); parser.add_argument("--minShare", type=float); parser.add_argument("--limit", type=int); parser.add_argument("--componentPrefix", default=""); parser.add_argument("--includeTestResources", action="store_true")
     args = parser.parse_args(); values = vars(args); tool = TOOLS[args.tool]
     values.pop("tool"); values = {k:v for k,v in values.items() if v is not None}
     import inspect
