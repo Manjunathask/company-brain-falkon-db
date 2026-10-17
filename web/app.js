@@ -141,7 +141,7 @@ async function runToolSuggestion(item) {
     });
     chat.lastElementChild.remove();
     const article = readableToolResult(item.tool, result.rows || [],
-      state.toolLabels[item.tool] || item.label || item.tool);
+      state.toolLabels[item.tool] || item.label || item.tool, result);
     chat.append(article);
     evidence("ask", result.graph, Object.values(item.params || {}));
     article.scrollIntoView({ block: "start" });
@@ -730,14 +730,33 @@ function markdown(node, source) {
   }
 }
 
+const outcomeLabels = {
+  ok: "OK", unknown_entity: "Not in the graph", inactive_person: "Not active",
+  no_qualifying_evidence: "No qualifying evidence", error: "Error",
+};
+const checkLabels = { ok: "found", not_in_graph: "not in the graph", inactive: "not active" };
+
+function checkLine(check) {
+  const names = [...new Set((check.queries || []).map(query => query.name))].join(", ");
+  const suggestions = (check.suggestions || []).map(item =>
+    item.label && item.label !== item.key ? `${item.key} (${item.label})` : item.key);
+  return `Checked ${check.arg} ${check.value}: ${checkLabels[check.status] || check.status}` +
+    ` (${names} · ${check.ms ?? 0} ms).` +
+    (suggestions.length ? ` Did you mean: ${suggestions.join(", ")}?` : "");
+}
+
 function toolCalls(parent, calls) {
   calls.forEach(call => {
     const item = el("section", "call-card");
     const heading = el("div", "call-title", call.label || call.tool);
-    heading.append(el("small", "", `${call.row_count ?? 0} rows · ${call.ms ?? 0} ms`));
+    heading.append(el("small", "", `${call.row_count ?? 0} rows · ${call.ms ?? 0} ms · ` +
+      (outcomeLabels[call.outcome] || "OK")));
     const rows = call.rows || [];
     const shown = Math.min(rows.length, 12);
-    item.append(heading, toolTable(call.tool, rows, shown));
+    item.append(heading);
+    if (call.note) item.append(el("p", "tool-note", call.note));
+    (call.checks || []).forEach(check => item.append(el("p", "name-check", checkLine(check))));
+    if (rows.length || !call.note) item.append(toolTable(call.tool, rows, shown));
     if ((call.row_count ?? 0) > shown) {
       item.append(el("p", "muted", `Showing ${shown} of ${call.row_count} rows.`));
     }
@@ -754,7 +773,15 @@ function toolCalls(parent, calls) {
         copy.textContent = "Copy unavailable";
       }
     };
-    details.append(copy, el("pre", "", call.cypher || "Query text unavailable"));
+    if (call.cypher) details.append(copy, el("pre", "", call.cypher));
+    else details.append(el("p", "muted", "Main query was not run."));
+    const checkQueries = new Map();
+    (call.checks || []).flatMap(check => check.queries || []).forEach(query => {
+      checkQueries.set(query.name, query.cypher);
+    });
+    checkQueries.forEach((cypher, name) => {
+      details.append(el("h4", "", `${name}.cypher`), el("pre", "", cypher));
+    });
     item.append(details);
     parent.append(item);
   });
@@ -767,11 +794,25 @@ function answer(result) {
   markdown(body, result.answer);
   const jump = el("a", "jump-evidence", "Jump to the evidence graph");
   jump.href = "#ask-evidence";
-  article.append(body, jump);
+  article.append(body);
+  const replyCheck = result.reply_check;
+  const unmatched = replyCheck?.unmatched || [];
+  if (unmatched.length) {
+    const warning = el("p", "reply-warning",
+      `Not found in this turn's graph results: ${unmatched.map(item => item.text).join(", ")}. ` +
+      "Check these before relying on them.");
+    warning.setAttribute("role", "status");
+    article.append(warning);
+  }
+  article.append(jump);
 
   const details = document.createElement("details");
   details.className = "how-know";
-  details.append(el("summary", "", `How I know · ${result.tool_calls?.length || 0} graph tool calls`));
+  const checked = replyCheck?.checked || 0;
+  const checkSummary = !replyCheck || (!checked && !unmatched.length) ? "" : unmatched.length
+    ? ` · ${unmatched.length} name${unmatched.length === 1 ? "" : "s"} not found in the results`
+    : ` · ${checked} name${checked === 1 ? "" : "s"} in the answer checked against the results`;
+  details.append(el("summary", "", `How I know · ${result.tool_calls?.length || 0} graph tool calls${checkSummary}`));
   const calls = el("div", "tool-calls");
   toolCalls(calls, result.tool_calls || []);
   details.append(calls);
@@ -845,9 +886,16 @@ function toolTable(tool, rows, limit = 12) {
   return table;
 }
 
-function readableToolResult(tool, rows, title) {
+function readableToolResult(tool, rows, title, result = {}) {
   const article = el("article", "chat-message");
-  article.append(el("div", "message-label", title), toolTable(tool, rows));
+  article.append(el("div", "message-label", title));
+  if (result.outcome && result.outcome !== "ok") {
+    article.append(el("strong", "", outcomeLabels[result.outcome] || result.outcome),
+      el("p", "tool-note", result.note || ""));
+    (result.checks || []).forEach(check => article.append(el("p", "name-check", checkLine(check))));
+  } else {
+    article.append(toolTable(tool, rows));
+  }
   return article;
 }
 

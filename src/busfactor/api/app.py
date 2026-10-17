@@ -303,7 +303,7 @@ def run_tool(name: str, body: ToolRequest):
     if error:
         raise HTTPException(status_code=422, detail=error)
     try:
-        return {**graph_tools.TOOLS[name](**params), "label": graph_tools.TOOL_LABELS.get(name, name)}
+        return {**graph_tools.run_tool(name, params), "label": graph_tools.TOOL_LABELS.get(name, name)}
     except (TypeError, ValueError) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except Exception as exc:
@@ -313,12 +313,10 @@ def run_tool(name: str, body: ToolRequest):
 @app.get("/api/departure/{login}")
 def departure(login: str):
     try:
-        person_result = get_graph().ro_query(
-            "MATCH (p:Person:Active {login:$login}) WHERE coalesce(p.bot,false)=false "
-            "RETURN p.name AS name", {"login": login})
+        person_result = get_graph().ro_query(load_query("17c_active_person"), {"login": login})
         if not person_result.result_set:
             raise HTTPException(status_code=404, detail=f"No active person with login '{login}' in the graph.")
-        person_name = person_result.result_set[0][0] or login
+        person_name = dict(zip(_columns(person_result), person_result.result_set[0]))["name"] or login
         results = {"simulation": graph_tools.simulate_departure(login),
                    "impact": graph_tools.departure_impact(login),
                    "files": graph_tools.departure_files(login),

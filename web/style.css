@@ -64,6 +64,22 @@ summary:focus-visible {
 .muted {
   color:var(--muted)
 }
+.reply-warning {
+  padding:var(--space-3) var(--space-4);
+  border:2px solid var(--amber);
+  border-radius:8px;
+  color:var(--ink);
+  background:var(--paper);
+  font-weight:600;
+  overflow-wrap:anywhere;
+}
+.name-check,.tool-note {
+  overflow-wrap:anywhere;
+}
+.call-title {
+  flex-wrap:wrap;
+  gap:var(--space-2);
+}
 .sr-only {
   position:absolute;
   width:1px;

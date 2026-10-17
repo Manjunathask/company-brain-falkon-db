@@ -78,7 +78,7 @@ One row, newest first. The packet compares its own suggestion with this one and 
 
 **Parameters:** $login.
 
-Used by the handover endpoint to return 404 for unknown people and to show the leaving person's name.
+Used by the departure and handover endpoints to return 404 for unknown people and to show the leaving person's name, and by the agent's name check (WP15) before any tool that takes a login runs.
 
 ## `17d_component_exists.cypher`
 
@@ -86,7 +86,7 @@ Used by the handover endpoint to return 404 for unknown people and to show the l
 
 **Parameters:** $component.
 
-Used by the handover endpoint to return 404 for an unknown area.
+Used by the handover endpoint to return 404 for an unknown area, and by the agent's name check before `successor` and `handover_plan` run.
 
 ## `17_people_search.cypher`
 
@@ -721,3 +721,67 @@ This searches case-folded logins (including partial matches), names, Module and 
 **Parameters:** $people, $components, $modules, $decisions, and $files are matched keys.
 
 The query matches each result by its label-specific stable key and returns the matching nodes only. It deliberately leaves neighborhood expansion to later graph tools so entity search stays uncluttered.
+
+
+## Name checks (WP15)
+
+Before an agent tool runs, `tools.resolve_inputs` checks every login, area, decision slug and file path it was given
+with the queries below (plus 17c and 17d). If a name is not in the graph, or the person is not Active, nothing else
+runs: the tool returns `unknown_entity` or `inactive_person` with suggestions from `13_find_entity`. A known name
+whose query returns no rows gets `no_qualifying_evidence`, with the query's threshold, so an empty result never reads
+as "nothing at risk".
+
+## `17e_person_status.cypher`
+
+**What it answers:** whether a login belongs to any Person, including inactive people and bots.
+
+**Parameters:** $login is the exact Person.login.
+
+Runs only after `17c_active_person` misses, to tell "in the graph but not Active (or a bot)" from "not in the graph
+at all". Returns `active`, `bot` and `lastSeen`, which the agent quotes as the last-seen date.
+
+## `17f_component_prefix.cypher`
+
+**What it answers:** how many Components have names starting with the requested prefix.
+
+**Parameters:** $prefix is a non-empty Component name prefix.
+
+Checks `componentPrefix` in `departure_impact` and `departure_files`; zero means the prefix matches no area.
+`count(DISTINCT c)` keeps zero explicit.
+
+## `17g_decision_exists.cypher`
+
+**What it answers:** whether an exact decision slug exists, whatever its status.
+
+**Parameters:** $slug is the exact Decision.slug.
+
+Checks `why_not` and `decision:` correction keys. It separates a missing decision (`unknown_entity`) from one that
+exists but was not superseded (`no_qualifying_evidence` from `why_not`).
+
+## `17h_file_exists.cypher`
+
+**What it answers:** whether an exact file path exists in the graph and whether it exists at HEAD.
+
+**Parameters:** $path is the exact File.path.
+
+Checks `decision_trace`. Deleted files stay valid: their history can still be traced.
+
+## `17i_module_exists.cypher`
+
+**What it answers:** whether a correction refers to an existing Module.
+
+**Parameters:** $name is the exact Module.name.
+
+Checks `module:` keys in `remember_correction`.
+
+## `17j_reply_names.cypher`
+
+**What it answers:** which graph names the reply check looks for in the agent's final answer.
+
+**Parameters:** none.
+
+Returns non-bot logins, Component names that contain `/`, and Decision titles with their slugs. After the final
+answer, `agent/reply_check.py` finds these names (plus `#1234`-style numbers, `@mentions` and backticked paths) in the
+answer and flags any that do not appear in this turn's tool results, the question or the recalled memory. Bots and
+single-word areas are left out because they match ordinary words. The answer is never rewritten; unmatched names
+appear as a warning under it.

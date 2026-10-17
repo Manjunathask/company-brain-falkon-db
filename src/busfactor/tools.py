@@ -4,6 +4,9 @@ from __future__ import annotations
 import argparse
 from datetime import datetime, timedelta, timezone
 import json
+import re
+import time
+from difflib import SequenceMatcher
 
 from busfactor.db import ROOT, get_graph, load_query
 from busfactor.graphjson import node_dict as _node, rel_dict as _rel
@@ -53,6 +56,157 @@ GRAPH_KEY_MAP = {
     "12_declared_vs_actual": {"modules": "module"},
     "13_find_entity": {"people": "key", "modules": "key", "components": "key", "decisions": "key", "files": "key"},
 }
+
+# Entity validation is deliberately separate from tool schemas and main queries.
+INPUT_CHECKS = {
+    "departure_impact": {"login": "active_person", "componentPrefix": "component_prefix"},
+    "departure_files": {"login": "active_person", "componentPrefix": "component_prefix"},
+    "orphaned_decisions": {"login": "active_person"},
+    "decision_share": {"login": "active_person"},
+    "successor": {"login": "active_person", "component": "component"},
+    "simulate_departure": {"login": "active_person"},
+    "handover_plan": {"login": "active_person", "component": "component"},
+    "mark_unavailable": {"login": "active_person"},
+    "why_not": {"slug": "decision"},
+    "decision_trace": {"path": "file"},
+    "remember_correction": {"key": "entity_key"},
+}
+CHECK_QUERIES = {
+    "active_person": ("17c_active_person", "login"),
+    "person": ("17e_person_status", "login"),
+    "component": ("17d_component_exists", "component"),
+    "component_prefix": ("17f_component_prefix", "prefix"),
+    "decision": ("17g_decision_exists", "slug"),
+    "file": ("17h_file_exists", "path"),
+    "module": ("17i_module_exists", "name"),
+}
+EMPTY_THRESHOLDS = {
+    "bus_factor": "modules with 5+ qualifying commits, counting authors with 2+ non-bulk commits on current files in the last 12 months",
+    "bus_factor_component": "areas with 5+ qualifying commits, counting authors with 2+ non-bulk commits on current files in the last 12 months",
+    "departure_impact": "areas where this person made 2+ non-bulk commits on current files in the last 12 months",
+    "departure_files": "current files edited by this person in non-bulk commits in the last 12 months, with no other active non-bot recent editor",
+    "orphaned_decisions": "decisions where this person is the only active participant at the requested confidence",
+    "decision_share": "decisions where this person opened at least the requested share of implementing PRs at the requested confidence",
+    "successor": "active non-bot people sharing current files edited in non-bulk commits in this area in the last 12 months",
+    "simulate_departure": "an active non-bot person in the collaboration graph",
+    "bridges": "active non-bot people ranked by betweenness in the collaboration graph",
+    "groups": "active collaboration groups in the graph",
+    "decision_trace": "a file linked through a commit and PR to a decision and its tracking issue",
+    "why_not": "a rejected decision with a SUPERSEDED_BY edge",
+    "drift": "accepted decisions with qualifying implementation links and later edits to their files",
+    "declared_vs_actual": "modules with declared owners or qualifying recent authors",
+    "handover_plan": "eligible active authors or reviewers in this area, or recent PRs by the leaving person for the reading list",
+    "remember_correction": "a saved correction for the specified graph entity",
+    "mark_unavailable": "a saved availability note for the specified active non-bot person",
+}
+# A search that finds nothing has no threshold and says nothing about risk, so it gets its own note.
+EMPTY_NOTES = {
+    "find_entity": "No person, code area, module, decision or file in the graph matches this text. "
+                   "Try part of the name or login.",
+}
+BLOCKED_OUTCOMES = {"unknown_entity", "inactive_person"}
+UNKNOWN_NOTE = ("Nothing else was run. Use one of the suggestions or ask the user which they meant; "
+                "this result says nothing about risk.")
+
+
+def run_check_query(name: str, params: dict | None = None, *, graph=None) -> list[dict]:
+    """Single read-only seam for name checks, suggestions and the reply catalogue."""
+    result = (graph if graph is not None else get_graph()).ro_query(load_query(name), params or {})
+    columns = [header[1] for header in result.header]
+    return [dict(zip(columns, row)) for row in result.result_set]
+
+
+def _suggestions(value: str, kind: str, run) -> list[dict]:
+    texts = [value, re.sub(r"[-_. ]", "", value)]
+    texts.extend(token for token in re.split(r"[-_/\. ]+", value) if len(token) >= 3)
+    if kind in {"component", "file"} and "/" in value:
+        parent, last = value.rsplit("/", 1)
+        texts.extend([parent + "/", last])
+    candidates = {}
+    for text in dict.fromkeys(texts):
+        if not text:
+            continue
+        # Search broadly before ranking: a five-hit prefix search can hide the intended area.
+        for row in run("13_find_entity", {"text": text, "limit": 10000}):
+            if row["kind"] == kind:
+                candidates[row["key"]] = {"key": row["key"], "label": row["label"]}
+    return sorted(candidates.values(), key=lambda row: (
+        -SequenceMatcher(None, value.lower(), row["key"].lower()).ratio(), row["key"]))[:5]
+
+
+def resolve_inputs(name: str, params: dict, *, graph=None) -> dict | None:
+    """Check every supplied entity argument; return metadata, blocking the whole call on any miss."""
+    checks = []
+    for arg, check_kind in INPUT_CHECKS.get(name, {}).items():
+        if arg not in params or (check_kind == "component_prefix" and not params[arg]):
+            continue
+        value = params[arg]
+        lookup = value
+        if check_kind == "entity_key":
+            check_kind, separator, lookup = value.partition(":")
+            if not separator or check_kind not in {"person", "component", "module", "decision"}:
+                raise ValueError("key must use person:, component:, module:, or decision:")
+        kind = {"active_person": "person", "component_prefix": "component"}.get(check_kind, check_kind)
+        queries = []
+
+        def run(query_name, query_params):
+            started = time.perf_counter()
+            rows = run_check_query(query_name, query_params, graph=graph)
+            queries.append({"name": query_name, "params": query_params,
+                            "ms": round((time.perf_counter() - started) * 1000, 2),
+                            "cypher": load_query(query_name)})
+            return rows
+
+        query_name, parameter = CHECK_QUERIES[check_kind]
+        rows = run(query_name, {parameter: lookup})
+        status = "ok" if rows else "not_in_graph"
+        if check_kind == "component_prefix":
+            status = "ok" if rows and rows[0]["count"] > 0 else "not_in_graph"
+        if check_kind == "active_person" and not rows:
+            rows = run("17e_person_status", {"login": lookup})
+            status = "inactive" if rows else "not_in_graph"
+        check = {"arg": arg, "value": value, "kind": kind, "status": status, "suggestions": []}
+        if rows and check_kind in {"active_person", "person"}:
+            check.update({key: rows[0].get(key) for key in ("name", "bot", "lastSeen") if key in rows[0]})
+            stamp = check.get("lastSeen")
+            if isinstance(stamp, (int, float)):
+                check["lastSeen"] = datetime.fromtimestamp(stamp / 1000, timezone.utc).date().isoformat()
+        if status == "not_in_graph":
+            check["suggestions"] = _suggestions(lookup, kind, run)
+        check["queries"] = queries
+        check["ms"] = round(sum(query["ms"] for query in queries), 2)
+        checks.append(check)
+    if not checks:
+        return None
+    unknown = any(check["status"] == "not_in_graph" for check in checks)
+    inactive = [check for check in checks if check["status"] == "inactive"]
+    outcome = "unknown_entity" if unknown else "inactive_person" if inactive else "ok"
+    note = UNKNOWN_NOTE if unknown else ""
+    if inactive:
+        people = "; ".join(f"{check.get('name') or check['value']} ({check['value']}), last seen "
+                           f"{check.get('lastSeen') or 'on an unknown date'}"
+                           + (", marked as a bot" if check.get("bot") else "") for check in inactive)
+        note = (note + " " if note else "") + (
+            f"{people}. Departure tools only cover non-bot people active in the last 12 months. Nothing else was run.")
+    return {"outcome": outcome, "checks": checks, "note": note}
+
+
+def run_tool(name: str, params: dict, *, graph=None, function=None) -> dict:
+    """Shared agent/API/CLI dispatch: resolve first, then label the returned evidence."""
+    resolution = resolve_inputs(name, params, graph=graph) or {"outcome": "ok", "note": ""}
+    if resolution["outcome"] in BLOCKED_OUTCOMES:
+        return {"tool": name, "params": params, "rows": [], "row_count": 0, "cypher": "",
+                "graph": {"nodes": [], "edges": []}, **resolution}
+    result = (function or TOOLS[name])(**params)
+    rows = result.get("rows", [])
+    empty = not rows
+    if name == "handover_plan" and rows:
+        empty = all(not row.get("candidates") and not row.get("read") for row in rows)
+    if empty:
+        resolution.update(outcome="no_qualifying_evidence", note=EMPTY_NOTES.get(name) or (
+            f"This query requires {EMPTY_THRESHOLDS[name]}. "
+            "The graph holds no qualifying evidence for this; do not read it as nothing being at risk."))
+    return {**result, **resolution, "row_count": len(rows)}
 
 def _params_for_graph(rows: list[dict], mapping: dict[str, str]) -> dict[str, list]:
     keys = {k: [] for k in ("people", "components", "modules", "decisions", "files", "prs", "issues")}
@@ -265,12 +419,17 @@ def main() -> None:
     parser.add_argument("tool", choices=TOOLS)
     parser.add_argument("--login"); parser.add_argument("--component"); parser.add_argument("--path"); parser.add_argument("--slug"); parser.add_argument("--text")
     parser.add_argument("--since", type=int); parser.add_argument("--minCommits", type=int); parser.add_argument("--minTotal", type=int); parser.add_argument("--minConfidence"); parser.add_argument("--minShare", type=float); parser.add_argument("--limit", type=int); parser.add_argument("--componentPrefix", default=""); parser.add_argument("--includeTestResources", action="store_true")
-    args = parser.parse_args(); values = vars(args); tool = TOOLS[args.tool]
+    args = parser.parse_args(); values = vars(args); name = args.tool; tool = TOOLS[name]
     values.pop("tool"); values = {k:v for k,v in values.items() if v is not None}
     import inspect
     signature = inspect.signature(tool)
     accepted = {k:v for k,v in values.items() if k in signature.parameters}
-    result = tool(**accepted)
+    result = run_tool(name, accepted)
+    print(f"outcome: {result['outcome']}")
+    if result.get("note"):
+        print(result["note"])
+    for check in result.get("checks", []):
+        print(json.dumps(check, ensure_ascii=False))
     rows = result["rows"]
     if rows:
         columns = list(rows[0])

@@ -185,7 +185,7 @@ def test_departure_payload_matches_app_field_contract(graph, monkeypatch):
     }
 
 
-def test_ask_uses_scripted_provider_and_returns_memory_recall(client, monkeypatch):
+def test_ask_uses_scripted_provider_and_returns_memory_recall(client, monkeypatch, isolated_agent_memory):
     monkeypatch.setenv("AGENT_PROVIDER", "scripted")
     monkeypatch.setenv("AGENT_SCRIPT", json.dumps([{"stop":"tool_use","tool_calls":[
         {"id":"find-1","name":"find_entity","input":{"text":"alice"}}]},

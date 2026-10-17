@@ -18,6 +18,7 @@ from .llm import Step
 from .memory import Memory, entity_keys, record_episode_if_live
 from .prompt import SYSTEM_PROMPT
 from .followups import build_followups
+from .reply_check import check_reply
 
 MAX_TOOL_RESULT_ROWS = 40
 MAX_LIST_ITEMS = 10
@@ -191,6 +192,7 @@ def ask(question: str, user: str, session_id: str | None = None, llm=None, *, me
                 (time.perf_counter() - phase_started) * 1000)
     messages = [{"role":"user", "content":_first_user_message(question, now.date().isoformat(), recalled,
                                                                   team_recall=team_recall)}]
+    seen_text = [question, messages[0]["content"]]
     evidence = {"nodes": [], "edges": []}
     trail, entities, usages, successful_calls = [], set(), [], []
     successful_tool_count = 0
@@ -214,13 +216,14 @@ def ask(question: str, user: str, session_id: str | None = None, llm=None, *, me
                 try:
                     if error: raise ValueError(error)
                     if name == "remember_correction":
-                        result = memory.store_correction(**params)
+                        function = memory.store_correction
                     elif name == "mark_unavailable":
-                        result = memory.mark_unavailable(**params)
+                        function = memory.mark_unavailable
                     elif name == "handover_plan":
-                        result = handover.plan_tool(**params)
+                        function = handover.plan_tool
                     else:
-                        result = graph_tools.TOOLS[name](**params)
+                        function = graph_tools.TOOLS[name]
+                    result = graph_tools.run_tool(name, params, graph=graph, function=function)
                     elapsed = round((time.perf_counter() - start) * 1000, 2)
                     return {"id":call_id,"name":name,"params":params,"result":result,"elapsed":elapsed}
                 except Exception as exc:
@@ -236,25 +239,37 @@ def ask(question: str, user: str, session_id: str | None = None, llm=None, *, me
                     tool_result = {"id":item["id"],"content":item["error"],"is_error":True}
                     results.append(tool_result)
                     trail.append({"tool":item["name"],"label":graph_tools.TOOL_LABELS.get(item["name"], item["name"]),
-                                  "params":item["params"],"cypher":"","row_count":0,"ms":item["elapsed"]})
+                                  "params":item["params"],"cypher":"","row_count":0,"ms":item["elapsed"],
+                                  "outcome":"error", "note":item["error"]})
                 else:
                     successful_tool_count += 1
                     result = item["result"]
                     rows = result.get("rows", [])
-                    successful_calls.append({"tool":item["name"], "params":item["params"], "rows":rows})
+                    blocked = result["outcome"] in graph_tools.BLOCKED_OUTCOMES
+                    if not blocked:
+                        successful_calls.append({"tool":item["name"], "params":item["params"], "rows":rows})
                     # The UI shows the same compacted rows the model saw; row_count stays the true total.
                     trail.append({"tool":item["name"],"label":graph_tools.TOOL_LABELS.get(item["name"], item["name"]),"params":item["params"],"cypher":result.get("cypher", ""),
                                   "row_count":len(rows),"rows":_compact_rows(rows),"ms":item["elapsed"]})
+                    trail[-1].update({key: result[key] for key in ("outcome", "checks", "note") if key in result})
                     if len(rows) > MAX_TOOL_RESULT_ROWS:
                         trail[-1]["rows_truncated"] = len(rows) - MAX_TOOL_RESULT_ROWS
                     _merge_graph(evidence, result.get("graph", {}))
-                    entities.update(entity_keys(result.get("graph", {})))
-                    payload = {"tool":item["name"],"row_count":len(rows),"rows":_compact_rows(rows)}
+                    if not blocked:
+                        entities.update(entity_keys(result.get("graph", {})))
+                    payload = {"tool":item["name"],"row_count":len(rows),"rows":_compact_rows(rows),
+                               "outcome":result["outcome"], "note":result["note"]}
+                    if result.get("checks"):
+                        # The UI gets the query text; the model needs only the checked names and results.
+                        payload["checks"] = [{**check, "queries": [
+                            {key: value for key, value in query.items() if key != "cypher"}
+                            for query in check["queries"]]} for check in result["checks"]]
                     if len(rows) > MAX_TOOL_RESULT_ROWS:
                         payload["truncated"] = len(rows) - MAX_TOOL_RESULT_ROWS
                     tool_result = {"id":item["id"],"content":json.dumps(payload, ensure_ascii=False, default=str)}
                     results.append(tool_result)
                 trail[-1]["tool_result_chars"] = _tool_result_chars(tool_result)
+                seen_text.append(tool_result["content"])
             messages.append(llm.tool_results_message(results))
             if rounds >= max_rounds:
                 stop_reason = "round_limit"
@@ -290,6 +305,16 @@ def ask(question: str, user: str, session_id: str | None = None, llm=None, *, me
         answer = "The response stopped at the model's token limit."
     if successful_tool_count == 0:
         answer = "I could not establish an answer because no successful tool returned FalkorDB evidence."
+    reply_check = {"checked": 0, "unmatched": []}
+    if successful_tool_count:
+        try:
+            names = graph_tools.run_check_query("17j_reply_names", graph=graph)
+        except Exception as exc:
+            names = []
+            LOGGER.warning("reply_check visitor=%s catalogue unavailable: %s", visitor, exc)
+        reply_check = check_reply(answer, "\n".join(seen_text).lower(), names)
+        if reply_check["unmatched"]:
+            LOGGER.warning("reply_check visitor=%s unmatched=%s", visitor, reply_check["unmatched"])
     phase_started = time.perf_counter()
     record_episode_if_live(memory, user, session_id, question, answer,
                            [item["tool"] for item in trail], sorted(entities))
@@ -299,4 +324,5 @@ def ask(question: str, user: str, session_id: str | None = None, llm=None, *, me
                 (time.perf_counter() - request_started) * 1000)
     return {"answer":answer, "tool_calls":trail, "graph":evidence, "entities":sorted(entities),
             "stop_reason":stop_reason, "usage":usages, "memory_recall":recalled,
-            "team_memory":team_recall, "followups":build_followups(successful_calls, question=question)}
+            "team_memory":team_recall, "followups":build_followups(successful_calls, question=question),
+            "reply_check":reply_check}

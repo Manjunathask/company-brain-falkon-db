@@ -1,9 +1,33 @@
 """Shared isolated FalkorDB graph for API integration tests."""
 import os
+import uuid
 
 import pytest
 from falkordb import FalkorDB
 from redis.exceptions import RedisError, ResponseError
+
+
+@pytest.fixture
+def isolated_agent_memory(graph, monkeypatch):
+    """Agent API tests must never record episodes in a live visitor or team graph."""
+    from busfactor.agent import loop
+    from busfactor.agent.memory import Memory
+    from busfactor import team_memory
+    from busfactor.db import get_client
+    client = get_client()
+    names = ["bf_agent_memory_" + uuid.uuid4().hex, "bf_agent_team_" + uuid.uuid4().hex]
+    team = team_memory.TeamMemory(client.select_graph(names[1]))
+    monkeypatch.setattr(loop, "Memory", lambda user: Memory(user, graph=client.select_graph(names[0]), team_memory=team))
+    monkeypatch.setattr(team_memory, "TeamMemory", lambda: team)
+    monkeypatch.setattr(loop, "get_graph", lambda: graph)
+    try:
+        yield
+    finally:
+        for name in names:
+            try:
+                client.connection.execute_command("GRAPH.DELETE", name)
+            except ResponseError:
+                pass
 
 
 @pytest.fixture

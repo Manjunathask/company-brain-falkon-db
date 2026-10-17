@@ -22,6 +22,9 @@ def main() -> None:
     names = [call.get("tool", "") for call in result.get("tool_calls", [])]
     print(f"stop_reason: {result['stop_reason']}")
     print(f"tools: {', '.join(names) if names else '(none)'}")
+    for call in result.get("tool_calls", []):
+        print(f"{call['tool']}: {call.get('outcome', 'unknown')}")
+    print(f"reply_check: {result.get('reply_check')}")
     print(f"seconds: {seconds:.2f}")
 
 

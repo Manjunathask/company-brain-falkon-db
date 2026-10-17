@@ -53,12 +53,21 @@ January (unverified note).** The new successor line reads "Reviewed 1 of Hao Jia
 files Hao Jiang changed; 1 commit of their own here." Point to the **Skipped** line and its "Unverified availability
 note" label: team claims never become repository facts.
 
-**5. Another agent sees the same memory (2:10–2:40).** Click **Ask**, type `Draft a handover plan for flink/inttest if
+**5. Another agent sees the same memory (2:10–2:30).** Click **Ask**, type `Draft a handover plan for flink/inttest if
 harperjiang leaves.` and press **Enter**. The agent calls `handover_plan`, suggests kaiqijinwow and says scottsand-db
 was skipped because of the unverified note. Expand **How I know**: the tool's result rows as a table, its parameters,
 and **Cypher query**. This is Track 02: the page and the chat agent share state through the `mem_team` graph.
 
-**6. How it works (2:40–3:00).** Every number came from a `.cypher` file: `05b` for the headline, `06` for the
+**6. Ask about someone not in the graph (2:30–2:45).** Type `What does the project lose if harper-jiang leaves?`
+(the login is misspelled). The answer opens by saying "harper-jiang" is not in the graph. It then either offers
+harperjiang (Hao Jiang) or answers for that closest match and says it did. In **How I know**, the first departure
+card reads **Not in the graph**, "Checked login harper-jiang: not in the graph (17c_active_person,
+17e_person_status, 13_find_entity …). Did you mean: harperjiang (Hao Jiang), leoojiang?", and under **Cypher query**,
+"Main query was not run." The summary line says how many names in the answer were checked against the results. The
+line to say: *names are checked before a query runs, and an empty result is labelled "no qualifying evidence",
+never "nothing at risk".* If time is short, skip this beat; the checks also show in step 5's How I know.
+
+**7. How it works (2:45–3:00).** Every number came from a `.cypher` file: `05b` for the headline, `06` for the
 departure (authors and reviewers counted separately), `18_handover_candidates`, `18b`, `18c` for the packet, plus
 `algo.betweenness`, `algo.WCC` and `GRAPH.COPY` for the collaboration what-if. Memory lives in separate graphs
 (`mem_v_<id>` per visitor, `mem_team` shared), joined to `delta` by `Entity.key` in Python.
@@ -89,6 +98,8 @@ that chat needs an Anthropic API key on the server.
 | Handover `harperjiang` · `flink/inttest` | successor **scottsand-db** (2 of 3 PRs reviewed); reading list #6188, #6192, #6933; decision Catalog-Managed Tables (title match, reason from issue #4381); 5 questions |
 | After marking scottsand-db unavailable | successor **kaiqijinwow** (1 of 3 PRs reviewed, 1 of 9 files, 1 commit) with a "What changed" line |
 | `scottsand-db` | 2 no other recent author, 2 one other recent author; Catalog-Managed Tables explicit **1 of 3**, title match **42 of 85** |
+| Ask: `harper-jiang` (misspelled) | departure tool **Not in the graph**, suggestions harperjiang (Hao Jiang), leoojiang; main query not run; on 17 Oct the agent answered for harperjiang, said so, and 31 names in its answer matched the results (no warning) |
+| Name checks elsewhere | `flink/intest` suggests flink/inttest first; `managed-commit` suggests managed-commits; `tmarzec` is **Not active** (last seen 2025-10-14) |
 | `murali-db` | 1 no other recent author (spark-unified/sql, 7 reviewers), 6 one other recent author, 43 files, 3 cut off |
 
 Timing on 2026-10-17: departure view 0.5–0.75 s, handover packet under 0.1 s, agent answers about 30 s (two model

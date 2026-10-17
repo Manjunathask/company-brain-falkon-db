@@ -1,5 +1,6 @@
 import json
 import inspect
+import pytest
 
 from busfactor import tools as graph_tools
 from busfactor.agent.llm import ScriptedLLM, Step
@@ -7,6 +8,20 @@ from busfactor.agent.loop import ask, _first_user_message, tool_specs
 from busfactor.agent.memory import Memory
 from busfactor.agent.memory import entity_keys
 from busfactor.agent.prompt import SYSTEM_PROMPT
+
+
+@pytest.fixture(autouse=True)
+def fake_name_checks(monkeypatch):
+    from busfactor.team_memory import TeamMemory
+    def check(name, params=None, *, graph=None):
+        if name == "17c_active_person":
+            return [{"login": params["login"], "name": params["login"]}]
+        if name == "17j_reply_names":
+            return []
+        raise AssertionError(f"Unexpected check: {name}")
+    monkeypatch.setattr(graph_tools, "run_check_query", check)
+    monkeypatch.setattr(graph_tools, "find_entity", lambda text: {"graph": {}})
+    monkeypatch.setattr(TeamMemory, "recall", lambda self, keys: [])
 
 
 def test_system_prompt_prevents_pronoun_inference():
@@ -86,7 +101,7 @@ def test_tool_result_is_capped_and_excludes_evidence_graph(monkeypatch):
     answer = ask("summarize", "testuser", llm=llm, memory=FakeMemory(), graph=object())
     result_message = llm.seen_messages[1][-1]
     payload = json.loads(result_message["content"][0]["content"])
-    assert set(payload) == {"tool", "row_count", "rows", "truncated"}
+    assert set(payload) == {"tool", "row_count", "rows", "truncated", "outcome", "note"}
     assert payload["row_count"] == 50 and payload["truncated"] == 10
     assert len(payload["rows"]) == 40
     assert payload["rows"][0]["paths"] == {"items":[f"path-0-{n}" for n in range(10)],"truncated":2}
