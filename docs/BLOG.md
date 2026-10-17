@@ -46,6 +46,6 @@ Eight broad commits are kept for history but excluded from expertise. Files dele
 
 ## Workflow and limits
 
-Claude Code (Claude Opus 5.5) planned and reviewed; OpenAI Codex implemented most work packages; Codex on GPT-6-Astra reviewed the project before submission. When Codex ran out of usage, Claude Code finished the measurement fixes and built the evidence and handover packages. Every brief, report and review is in `docs/tasks/`. The running agent uses Claude Sonnet 5.5.
+I set the direction and made the calls: the plan and data source, Sonnet over Opus for the agent, the newcomer testing that reshaped the UI, and which review findings to act on. The AI tools wrote the code. Claude Code (Claude Opus 5.5) planned and reviewed; OpenAI Codex implemented most work packages; Codex on GPT-6-Astra reviewed the project before submission. When Codex ran out of usage, Claude Code finished the measurement fixes and built the evidence and handover packages. Every brief, report and review is in `docs/tasks/`. The running agent uses Claude Sonnet 5.5.
 
 This is not a complete picture of Delta Lake's knowledge. The graph covers two years of public commits, PRs, reviews and RFCs. It cannot read private discussions, judge code quality, or know who is available. A suggested successor is a lead for a conversation, not a decision. When the system cannot establish a reason, it should show the path and say what remains unknown. That honesty is part of the feature.

@@ -277,6 +277,16 @@ The app runs locally through Docker Compose; there is no hosted deployment. See 
 
 ## Built with AI assistance
 
+This is a solo entry. The developer set the direction and made the decisions; AI tools wrote the code. From the session records, the developer:
+
+- planned the project with Claude (chat) on 14 Oct, before coding began, and recorded the decisions in [docs/PLAN.md](docs/PLAN.md): the departure question, `delta-io/delta` as the data source, and the graph model;
+- chose the way of working (Codex implements each work package from a written brief; Claude Code reviews it against the live graph) and set up Docker, the GitHub token and the public repository;
+- chose the Claude API for the agent and Claude Sonnet 5.5 over Opus 5.5 on cost, because the graph tools do the reasoning; the evaluation in [docs/eval/](docs/eval/) then confirmed the choice;
+- tested the app as a newcomer would and wrote the feedback behind the WP11 redesign: no GitHub-login box on the first screen, a searchable list of maintainers ranked by activity instead of a free-text field, suggested questions with Tab completion, and three or four follow-up questions after each answer; and asked for that plan to be reviewed by Codex on GPT-6-Astra;
+- re-tested the redesign and reported, with screenshots, the problems fixed in WP11d: starter questions below the fold, a starter chip that returned no answer, layout gaps, and an unclear visitor identity;
+- commissioned the pre-submission review (Codex on GPT-6-Astra), weighed it with Claude Code, and chose what to act on (the must and should items, WP13a, WP13b and WP14, not the stretch items);
+- asked for a comparison with the organisers' guidance post on 17 Oct, which led to the name checks in WP15 and the deployment plan in WP16, and required a check for private references before every push.
+
 Claude Code (Claude Opus 5.5) reviewed and orchestrated the work; OpenAI Codex implemented work packages WP1–WP12 and most of WP13a. The plan and graph model in [docs/PLAN.md](docs/PLAN.md) were drafted with Claude (chat) on 14 Oct, before coding began; that was design work only. Codex on GPT-6-Astra reviewed the UX revamp plan (WP11) and, on 17 Oct, the whole project before submission; Claude Code checked that review against the code and the live graph, confirmed its findings (the headline window mismatch, the missing threshold for the leaving person, ignored reviews, mostly keyword decision links, hidden evidence rows) and wrote the WP13a, WP13b and WP14 briefs. When Codex hit its usage limit during WP13a, the developer asked Claude Code to finish the WP13a review fixes and to implement WP13b (inspectable evidence and quoted decision reasons) and WP14 (handover packets) directly. Every task brief, report, and review round is recorded in [docs/tasks/](docs/tasks/). The reviewer ran live integration tests, browser walkthroughs, and the model evaluation in [docs/eval/](docs/eval/). The running agent calls Claude Sonnet 5.5.
 
 ## License
