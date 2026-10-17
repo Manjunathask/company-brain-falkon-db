@@ -79,12 +79,12 @@
 
       <div class="views">
         <section id="leave-view" class="view active-view" role="tabpanel" aria-labelledby="tab-leave">
+          <div class="leave-column">
           <section class="intro">
             <p class="eyebrow">A map of shared project knowledge</p>
-            <h1>See what depends on one person.</h1>
-            <p>Explore where recent Delta Lake code and decisions rely on a small number of contributors.</p>
-            <div id="headline" class="headline" aria-live="polite">Loading the repository snapshot…</div>
+            <h1 id="headline" class="headline" aria-live="polite">Loading the repository snapshot…</h1>
             <p class="data-note">
+              One person wrote at least half of their commits in the last 12 months.
               <span
                 class="tip"
                 tabindex="0"
@@ -115,11 +115,14 @@
           </p>
           <section id="team-line" class="team-line hidden" aria-live="polite"></section>
           <section id="departure-results" class="departure-results" aria-live="polite"></section>
+          </div>
           <EvidencePanel id="leave-evidence" title="Departure evidence"></EvidencePanel>
         </section>
 
         <section id="ask-view" class="view" role="tabpanel" aria-labelledby="tab-ask" hidden>
+          <div class="ask-column">
           <section id="memory-banner" class="memory-banner hidden" aria-live="polite"></section>
+          <div id="ask-welcome" class="ask-welcome">
           <div class="ask-intro">
             <p class="eyebrow">Ask the graph</p>
             <h1>Explore Delta Lake knowledge</h1>
@@ -127,13 +130,14 @@
               Ask a question. Bus Factor answers from the repository graph and shows the query paths behind its answer.
             </p>
           </div>
-          <div id="chat-list" class="chat-list" aria-live="polite"></div>
           <section id="ask-empty" class="ask-empty">
             <h2>Start with a question</h2>
             <div id="ask-suggestions" class="chip-list">
               <span class="muted">Loading suggested questions…</span>
             </div>
           </section>
+          </div>
+          <div id="chat-list" class="chat-list" aria-live="polite"></div>
           <div id="chat-disabled" class="notice hidden" role="status">
             Chat needs an Anthropic API key on the server; you can still use the departure simulator
             and the suggested questions.
@@ -155,7 +159,9 @@
               <span>Enter to send · Shift+Enter for a new line</span>
               <button id="start-over" class="text-button" type="button">Start over</button>
             </div>
+            <p class="memory-transparency">This browser keeps an anonymous id so the app can remember your questions on this server. Start over clears it.</p>
           </form>
+          </div>
           <EvidencePanel id="ask-evidence" title="Answer evidence"></EvidencePanel>
         </section>
       </div>
@@ -163,6 +169,7 @@
 
     <template id="evidence-template">
       <section class="evidence panel-card">
+        <div class="evidence-placeholder">The graph behind each answer appears here.</div>
         <div class="graph-heading">
           <div>
             <p class="eyebrow">Evidence</p>

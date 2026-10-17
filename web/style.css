@@ -210,10 +210,10 @@ h1 {
 }
 .headline {
   max-width:850px;
-  margin:var(--space-6) 0 var(--space-2);
-  font-size:clamp(1.25rem,2.6vw,1.75rem);
+  margin:0 0 var(--space-3);
+  font-size:clamp(1.8rem,3vw,2.35rem);
   line-height:1.35;
-  font-weight:700;
+  font-weight:750;
   letter-spacing:-.025em
 }
 .data-note,.disclaimer {
@@ -544,11 +544,14 @@ h2 {
   padding:var(--space-6) 0
 }
 .ask-form {
-  position:sticky;
-  bottom:0;
-  margin:var(--space-4) 0;
+  margin:var(--space-3) 0 0;
   background:var(--wash);
   padding:8px 0
+}
+.memory-transparency {
+  margin:5px 3px 0;
+  color:var(--muted);
+  font-size:var(--font-xs)
 }
 .composer {
   display:flex;
@@ -614,6 +617,23 @@ h2 {
 .call-card {
   padding:10px 0;
   border-bottom:1px solid var(--line)
+}
+.tool-table {
+  width:100%;
+  border-collapse:collapse;
+  font-size:var(--font-sm)
+}
+.tool-table th,
+.tool-table td {
+  padding:7px 8px;
+  border-bottom:1px solid var(--line);
+  text-align:left;
+  vertical-align:top;
+  overflow-wrap:anywhere
+}
+.tool-table th {
+  color:var(--muted);
+  font-size:var(--font-xs)
 }
 .call-title {
   display:flex;
@@ -744,6 +764,27 @@ pre,.tool-params {
 .evidence-text a {
   overflow-wrap:anywhere
 }
+.evidence-placeholder {
+  display:none
+}
+.evidence.is-placeholder {
+  min-height:140px;
+  align-self:start
+}
+.evidence.is-placeholder .evidence-placeholder {
+  display:grid;
+  min-height:104px;
+  place-items:center;
+  color:var(--muted);
+  text-align:center
+}
+.evidence.is-placeholder .graph-heading,
+.evidence.is-placeholder .graph-canvas,
+.evidence.is-placeholder .graph-legend,
+.evidence.is-placeholder .node-details,
+.evidence.is-placeholder .evidence-text {
+  display:none
+}
 
 /* Responsive layouts */
 @media(max-width:650px) {
@@ -787,9 +828,6 @@ pre,.tool-params {
   .brand small {
     max-width:80vw
   }
-  .ask-form {
-    position:relative
-  }
 }
 @media(prefers-reduced-motion:reduce) {
   *,*::before,*::after {
@@ -807,15 +845,68 @@ pre,.tool-params {
     align-items: start;
     max-width: none;
   }
+  .leave-column,
+  .ask-column {
+    grid-column:1;
+    grid-row:1;
+    min-width:0
+  }
   .evidence {
     grid-column: 2;
-    grid-row: 1;
     position: sticky;
     top: 16px;
     display: flex;
     flex-direction: column;
     max-height: calc(100vh - 32px);
     overflow: auto;
+  }
+  #leave-evidence,
+  #ask-evidence {
+    grid-row:1;
+    align-self:start
+  }
+  #ask-view {
+    align-items:start
+  }
+  .ask-column {
+    display:flex;
+    flex-direction:column;
+    height:calc(100vh - 180px);
+    min-height:420px;
+    overflow:hidden
+  }
+  .ask-welcome {
+    flex:0 0 auto
+  }
+  .ask-intro {
+    padding:8px 0 12px
+  }
+  .ask-intro h1 {
+    font-size:clamp(1.55rem,3vw,2rem)
+  }
+  .ask-empty {
+    padding:4px 0 10px
+  }
+  .chat-list {
+    flex:1 1 auto;
+    min-height:0;
+    max-height:none;
+    overflow:auto;
+    scroll-behavior:smooth
+  }
+  .ask-form {
+    flex:0 0 auto;
+    margin-top:8px
+  }
+  .ask-form .composer-note {
+    flex-wrap:wrap
+  }
+  .memory-banner {
+    flex:0 0 auto
+  }
+  .evidence.is-placeholder {
+    padding:12px;
+    min-height:140px
   }
   .graph-heading {
     align-items: center;
@@ -866,6 +957,13 @@ pre,.tool-params {
 }
 /* The compact view keeps the result before the graph and provides a jump link. */
 @media (max-width: 1023px) {
+  .leave-column,
+  .ask-column {
+    min-width:0
+  }
+  .evidence.is-placeholder {
+    margin:var(--space-4) 0
+  }
   .jump-evidence {
     display: inline-flex;
     margin: 0 0 var(--space-3);

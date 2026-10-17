@@ -27,6 +27,14 @@ function mainNode(node, roots) {
 export function capConnectedGraph(graph = {}, roots = [], maxNodes = GRAPH_CAP) {
   const nodes = graph.nodes || [];
   const edges = graph.edges || [];
+  if (nodes.length <= maxNodes) {
+    const ids = new Set(nodes.map(node => node.id));
+    return {
+      graph: { nodes, edges: edges.filter(edge => ids.has(edge.source) && ids.has(edge.target)) },
+      totalNodes: nodes.length,
+      omitted: 0,
+    };
+  }
   const byId = new Map(nodes.map(node => [node.id, node]));
   const adjacency = new Map(nodes.map(node => [node.id, []]));
   for (const edge of edges) {
@@ -72,6 +80,7 @@ export function capConnectedGraph(graph = {}, roots = [], maxNodes = GRAPH_CAP) 
 
 // Draw the capped graph and keep equivalent, readable evidence available as text.
 export function renderEvidence(panel, graph = {}, options = {}) {
+  panel.classList.toggle("is-placeholder", !(graph.nodes || []).length);
   const canvas = panel.querySelector(".graph-canvas");
   const count = panel.querySelector(".graph-count");
   const detail = panel.querySelector(".node-properties");
@@ -150,7 +159,7 @@ export function renderEvidence(panel, graph = {}, options = {}) {
       selector: "node",
       style: {
         label: "data(label)",
-        "font-size": 10,
+        "font-size": 11,
         "text-wrap": "wrap",
         "text-max-width": 92,
         "text-valign": "center",
@@ -204,7 +213,12 @@ export function renderEvidence(panel, graph = {}, options = {}) {
     { selector: ":selected", style: { "border-width": 4, "border-color": "#14264a" } },
   ];
   const layout = options.layout === "departure"
-    ? { name: "concentric", concentric: element => element.hasClass("departing") ? 3 : 1, levelWidth: () => 1 }
+    ? {
+      name: "concentric",
+      concentric: element => element.hasClass("departing") ? 3
+        : element.hasClass("component") || element.hasClass("decision") ? 2 : 1,
+      levelWidth: () => 1,
+    }
     : shown.nodes.length > 1 && shown.edges.length
       ? {
         name: "breadthfirst",
@@ -230,7 +244,12 @@ export function renderEvidence(panel, graph = {}, options = {}) {
   panel.querySelector(".fit-graph").onclick = () => canvas._cy?.fit(undefined, 24);
   panel.querySelector(".reset-graph").onclick = () => {
     const resetLayout = options.layout === "departure"
-      ? { name: "concentric" }
+      ? {
+        name: "concentric",
+        concentric: element => element.hasClass("departing") ? 3
+          : element.hasClass("component") || element.hasClass("decision") ? 2 : 1,
+        levelWidth: () => 1,
+      }
       : { name: "breadthfirst" };
     canvas._cy?.layout(resetLayout).run();
     canvas._cy?.fit(undefined, 24);

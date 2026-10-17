@@ -5,6 +5,8 @@ const $ = selector => document.querySelector(selector);
 const state = {
   evidence: { leave: null, ask: null },
   suggestions: [],
+  toolLabels: {},
+  chatEnabled: false,
   departureToken: 0,
   askToken: 0,
   sessionId: crypto.randomUUID(),
@@ -68,6 +70,12 @@ function setTab() {
   if (!ask && location.hash.startsWith("#leave/")) {
     const login = decodeURIComponent(location.hash.slice(7));
     if (login !== state.currentLogin) selectPerson(login, false);
+  } else if (!ask && location.hash === "#leave") {
+    state.currentLogin = "";
+    state.departureToken++;
+    $("#departure-results").replaceChildren();
+    $("#team-line").classList.add("hidden");
+    evidence("leave", { nodes: [], edges: [] }, [], "departure");
   }
 }
 
@@ -99,10 +107,12 @@ function chip(item, destination) {
   const button = el("button", "chip", suggestionText(item));
   button.type = "button";
   button.onclick = () => {
-    if (item.tool && !$("#chat-disabled").classList.contains("hidden")) {
-      if (item.tool === "departure") return selectPerson(item.params?.login);
+    if (item.tool) {
+      if (item.tool === "departure" && (destination === "leave" || !state.chatEnabled)) {
+        return selectPerson(item.params?.login);
+      }
       location.hash = "#ask";
-      return runToolSuggestion(item);
+      return state.chatEnabled ? send(suggestionText(item)) : runToolSuggestion(item);
     }
     location.hash = "#ask";
     $("#question-input").value = suggestionText(item);
@@ -118,6 +128,8 @@ function chip(item, destination) {
 async function runToolSuggestion(item) {
   const chat = $("#chat-list");
   const question = suggestionText(item);
+  $("#ask-welcome").classList.add("hidden");
+  $("#ask-empty").classList.add("hidden");
   chat.append(
     message("You", question, "user-message"),
     message("Graph tool", "Querying the graph…", "pending-message"),
@@ -128,13 +140,11 @@ async function runToolSuggestion(item) {
       body: JSON.stringify({ params: item.params || {} }),
     });
     chat.lastElementChild.remove();
-    const article = el("article", "chat-message");
-    article.append(
-      el("div", "message-label", item.label || item.tool),
-      el("pre", "tool-result", JSON.stringify(result.rows || [], null, 2)),
-    );
+    const article = readableToolResult(item.tool, result.rows || [],
+      state.toolLabels[item.tool] || item.label || item.tool);
     chat.append(article);
     evidence("ask", result.graph, Object.values(item.params || {}));
+    article.scrollIntoView({ block: "start" });
   } catch (error) {
     chat.lastElementChild.textContent = error.message;
   }
@@ -144,8 +154,7 @@ async function loadLanding() {
   try {
     const data = await api("/api/summary");
     $("#headline").textContent =
-      `${data.busFactorOne} of ${data.componentsReported} active code areas in Delta Lake ` +
-      "have a bus factor of 1: one person wrote at least half of their commits in the last 12 months.";
+      `${data.busFactorOne} of ${data.componentsReported} active code areas in Delta Lake have a bus factor of 1`;
     $("#dataset-chip").textContent =
       `${data.snapshotDate || "Snapshot date unavailable"} · ` +
       `${data.dataWindow || "two-year repository window"}`;
@@ -162,12 +171,21 @@ async function loadLanding() {
 
   try {
     const health = await api("/api/health");
+    state.chatEnabled = Boolean(health.chatEnabled);
+    $("#chat-disabled").classList.toggle("hidden", state.chatEnabled);
     $("#dataset-counts").textContent +=
       ` Snapshot graph: ${Number(health.nodes).toLocaleString()} records and ` +
       `${Number(health.edges).toLocaleString()} relationships.`;
   } catch (_) {
+    state.chatEnabled = false;
+    $("#chat-disabled").classList.remove("hidden");
     $("#dataset-counts").textContent += " Snapshot graph counts unavailable.";
   }
+
+  try {
+    const data = await api("/api/tools");
+    state.toolLabels = Object.fromEntries((data.tools || []).map(tool => [tool.name, tool.label]));
+  } catch (_) {}
 
   try {
     const data = await api("/api/suggestions");
@@ -223,6 +241,7 @@ async function selectPerson(login, changeHash = true) {
   state.currentLogin = login;
   if (changeHash) location.hash = `#leave/${encodeURIComponent(login)}`;
   const token = ++state.departureToken;
+  evidence("leave", { nodes: [], edges: [] }, [], "departure");
   const output = $("#departure-results");
   output.replaceChildren(el("p", "loading-state", `Looking at recent work by @${login}…`));
   try {
@@ -503,6 +522,46 @@ function answer(result) {
   }
   $("#chat-list").append(article);
   evidence("ask", result.graph, Object.values(result.tool_calls?.[0]?.params || {}));
+  article.scrollIntoView({ block: "start" });
+}
+
+// Plain labels for the no-key starter tools; unknown fields get readable labels too.
+const toolColumns = {
+  successor: [["successor", "Successor"], ["sharedFiles", "Shared files"], ["theirCommits", "Commits here"]],
+  why_not: [["rejected", "Rejected decision"], ["chosenInstead", "Chosen instead"], ["evidence", "Evidence"], ["discussion", "Discussion"], ["whoToAsk", "Who to ask"]],
+  declared_vs_actual: [["module", "Module"], ["declared", "Declared owners"], ["actualTop3", "Most active"], ["ownersNotInTop3", "Owners not in top 3"]],
+};
+
+function readableToolResult(tool, rows, title) {
+  const article = el("article", "chat-message");
+  article.append(el("div", "message-label", title));
+  const columns = toolColumns[tool] || Object.keys(rows[0] || {}).map(key => [key,
+    key.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/^./, char => char.toUpperCase())]);
+  if (!rows.length || !columns.length) {
+    article.append(el("p", "muted", "No matching rows in the current graph."));
+    return article;
+  }
+  const table = document.createElement("table");
+  table.className = "tool-table";
+  const head = document.createElement("thead");
+  const header = document.createElement("tr");
+  columns.forEach(([, label]) => header.append(el("th", "", label)));
+  head.append(header);
+  const body = document.createElement("tbody");
+  rows.slice(0, 12).forEach(row => {
+    const tr = document.createElement("tr");
+    columns.forEach(([key]) => {
+      const cell = document.createElement("td");
+      const value = row[key];
+      cell.textContent = Array.isArray(value) ? (value.length ? value.join(", ") : "—")
+        : value === null || value === undefined || value === "" ? "—" : String(value);
+      tr.append(cell);
+    });
+    body.append(tr);
+  });
+  table.append(head, body);
+  article.append(table);
+  return article;
 }
 
 async function send(question) {
@@ -512,11 +571,13 @@ async function send(question) {
   const chat = $("#chat-list");
   const pending = message("Bus Factor", "Querying the graph…", "pending-message");
   pending.setAttribute("aria-live", "polite");
-  chat.append(message("You", question, "user-message"), pending);
+  const userMessage = message("You", question, "user-message");
+  chat.append(userMessage, pending);
+  userMessage.scrollIntoView({ block: "start" });
+  $("#ask-welcome").classList.add("hidden");
   $("#ask-empty").classList.add("hidden");
   $("#question-input").value = "";
   grow();
-  chat.scrollTop = chat.scrollHeight;
   try {
     const data = await api("/api/ask", {
       method: "POST",
@@ -606,13 +667,15 @@ $("#start-over").onclick = async () => {
 async function loadMemory() {
   try {
     const data = await api(`/api/memory/${encodeURIComponent(visitorId)}`);
-    const item = data.recall?.[0];
+    const item = data.recall?.find(entry => (entry.earlierQuestions || []).length) || data.recall?.[0];
     if (!item) return;
     const entity = String(item.entity || "a Delta topic").replace(/^[^:]+:/, "");
     const count = item.commitCount || item.newCommits || 0;
-    $("#memory-banner").textContent =
-      `Welcome back — since you last asked about ${entity}, ` +
-      `${count} new commits landed.`;
+    const lastQuestion = item.earlierQuestions?.[0];
+    $("#memory-banner").textContent = lastQuestion
+      ? `Welcome back. Last time you asked: “${lastQuestion}.”` +
+        (count > 0 ? `, ${count} new commits since then in ${entity}.` : "")
+      : `Welcome back. Last time you asked about ${entity}.`;
     $("#memory-banner").classList.remove("hidden");
   } catch (_) {}
 }
@@ -621,6 +684,7 @@ function mountEvidence(node) {
   const template = $("#evidence-template").content.firstElementChild.cloneNode(true);
   template.id = node.id;
   template.querySelector("h2").textContent = node.getAttribute("title");
+  template.classList.add("is-placeholder");
   node.replaceWith(template);
 }
 

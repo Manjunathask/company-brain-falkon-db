@@ -193,7 +193,11 @@ def _focused_departure_graph(login: str, results: dict, components: list[dict]) 
     for edge in successor_graph.get("edges", []):
         retained_edges[(edge.get("source"), edge.get("type"), edge.get("target"))] = edge
 
-    return {"nodes": list(retained_nodes.values()), "edges": list(retained_edges.values())}
+    readable_nodes = {node_id: node for node_id, node in retained_nodes.items()
+                      if node.get("label") in {"Person", "Component", "Decision"}}
+    readable_edges = [edge for edge in retained_edges.values()
+                      if edge.get("source") in readable_nodes and edge.get("target") in readable_nodes]
+    return {"nodes": list(readable_nodes.values()), "edges": readable_edges}
 
 
 @app.get("/api/health")
@@ -207,7 +211,9 @@ def health():
     provider = os.getenv("AGENT_PROVIDER", "anthropic").lower()
     model = os.getenv("AGENT_MODEL", "claude-sonnet-5-5") if provider == "anthropic" else provider
     return {"ok": True, "graph": os.getenv("FALKORDB_GRAPH", "delta"),
-            "nodes": row["nodes"], "edges": row["relationships"], "agent_model": model}
+            "nodes": row["nodes"], "edges": row["relationships"], "agent_model": model,
+            "chatEnabled": provider == "scripted" or
+            (provider == "anthropic" and bool(os.getenv("ANTHROPIC_API_KEY")))}
 
 
 @app.post("/api/ask")

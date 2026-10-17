@@ -26,6 +26,11 @@ assert.deepEqual(capped.graph.edges.map(edge => [edge.source, edge.target]), [[1
 assert.equal(capped.omitted, 1);
 console.log("graph cap keeps a rooted connected subgraph and only internal edges");
 
+const fullFocus = capConnectedGraph(graph, [], 4);
+assert.deepEqual(fullFocus.graph.nodes.map(node => node.id), [1, 2, 3, 4]);
+assert.equal(fullFocus.omitted, 0);
+console.log("graph cap keeps every node when the graph fits the cap");
+
 const storyGraph = {
   nodes: [
     { id: "gone", label: "Person", focusRole: "departing" },

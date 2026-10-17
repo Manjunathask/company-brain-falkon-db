@@ -33,6 +33,20 @@ def test_summary_shape_and_fixture_counts(client, monkeypatch):
     assert {"snapshotDate", "dataWindow"} <= data.keys()
 
 
+@pytest.mark.parametrize(("provider", "api_key", "expected"), [
+    ("anthropic", "secret", True),
+    ("anthropic", "", False),
+    ("scripted", "", True),
+    ("other", "secret", False),
+])
+def test_health_reports_chat_availability(client, monkeypatch, provider, api_key, expected):
+    monkeypatch.setenv("AGENT_PROVIDER", provider)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", api_key)
+    response = client.get("/api/health")
+    assert response.status_code == 200
+    assert response.json()["chatEnabled"] is expected
+
+
 def test_people_search_prefix_name_and_limit(client):
     response = client.get("/api/people?q=ali&limit=10")
     assert response.status_code == 200
@@ -118,6 +132,30 @@ def test_departure_summary_fields(client):
     assert data["summary"]["name"] == "Alice"
     assert {"orphaned", "atRisk", "orphanedFiles", "cutOff", "mainGroupBefore",
             "mainGroupAfter", "bridgeRank"} <= data["summary"].keys()
+
+
+def test_focused_departure_graph_omits_commit_and_file_nodes():
+    graph = {
+        "simulation": {"graph": {"nodes": [
+            {"id": "person", "label": "Person", "key": "alice", "props": {"login": "alice"}},
+            {"id": "commit", "label": "Commit"}, {"id": "file", "label": "File"},
+            {"id": "component", "label": "Component", "key": "spark/core", "props": {"name": "spark/core"}},
+        ], "edges": [
+            {"source": "person", "target": "component", "type": "KNOWS"},
+            {"source": "person", "target": "commit", "type": "AUTHORED"},
+            {"source": "commit", "target": "file", "type": "TOUCHED"},
+        ]}},
+        "impact": {"graph": {"nodes": [], "edges": []}},
+        "files": {"graph": {"nodes": [], "edges": []}},
+        "decision_share": {"graph": {"nodes": [], "edges": []}, "rows": []},
+        "successor": {"graph": {"nodes": [], "edges": []}, "rows": []},
+    }
+    focus = api._focused_departure_graph("alice", graph, [
+        {"component": "spark/core", "risk": "ORPHANED", "theirCommits": 8},
+    ])
+    assert all(node["label"] in {"Person", "Component", "Decision"} for node in focus["nodes"])
+    ids = {node["id"] for node in focus["nodes"]}
+    assert all(edge["source"] in ids and edge["target"] in ids for edge in focus["edges"])
 
 
 def test_visitor_id_validation(client):
