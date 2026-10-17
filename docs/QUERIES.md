@@ -150,9 +150,9 @@ This batch creates pull requests and their author and reviewer activity edges. R
 
 **What it answers:** load the RFC tracking issues and people who opened or commented on them.
 
-**Parameters:** $rows has issue properties, author/login handle/bot fields, and commenters as {login, handle, bot, at} maps.
+**Parameters:** $rows has issue properties (title, state, createdAt, body), author/login handle/bot fields, and commenters as {login, handle, bot, at} maps.
 
-This batch loads RFC issues and the people who opened or commented on them. The issue nodes provide the discussion endpoint for decision traces.
+This batch loads RFC issues and the people who opened or commented on them. The issue nodes provide the discussion endpoint for decision traces, and the issue body is kept so a decision's stated reason can be quoted from its source.
 
 ## `01e_link_references.cypher`
 
@@ -196,11 +196,11 @@ The RFC table rows become Decision nodes linked to their issue and markdown file
 
 ## `02b_superseded_by.cypher`
 
-**What it answers:** record that Managed Commits was superseded by Catalog-Managed Tables.
+**What it answers:** record that one decision was superseded by another, with the evidence and the stated reason.
 
-**Parameters:** none.
+**Parameters:** $old, $new (Decision slugs), $source, $rationale, $rationaleSource.
 
-This query records the known replacement relationship between rejected Managed Commits and accepted Catalog-Managed Tables. The source property preserves the PR evidence.
+load.py passes the one known pair: rejected Managed Commits was replaced by Catalog-Managed Tables, with PR #4382 as evidence. The rationale is a verbatim excerpt parsed at load time (`rationale_excerpt` in ingest/rfcs.py): the first paragraph of tracking issue #4381 that names the old RFC (its keyword patterns or issue #2598), plus the list right after it. No LLM writes it; it is null when the cached issue has no body.
 
 ## `02c_load_codeowners.cypher`
 
@@ -424,7 +424,7 @@ Return KNOWS paths only for the table-selected logins, without re-ranking histor
 
 **Parameters:** $login, $since (epoch ms), $minCommits on both author sides, $componentPrefix, $includeTestResources.
 
-Count distinct in-window, non-bulk commits on current files directly, because KNOWS totals are all-history. Omit areas where the leaving non-bot author fails the threshold; aggregate other Active non-bot authors before matching reviewers. NO OTHER AUTHOR / ONE OTHER AUTHOR / COVERED mean zero / one / at least two remaining qualifying authors. Reviewers must be Active, non-bot, another person, and have REVIEWED.at > $since on a PR with an in-window non-bulk commit touching a current area file. Count distinct area PRs per reviewer, return up to five logins ordered by PR count then login, and the full reviewerCount; reviews do not change risk.
+Count distinct in-window, non-bulk commits on current files directly, because KNOWS totals are all-history. Omit areas where the leaving non-bot author fails the threshold; aggregate other Active non-bot authors before matching reviewers. NO OTHER AUTHOR / ONE OTHER AUTHOR / COVERED mean zero / one / at least two remaining qualifying authors. Reviewers must be Active, non-bot, another person, and have REVIEWED.at > $since on a PR with an in-window non-bulk commit touching a current area file. Count distinct area PRs per reviewer, return up to five logins ordered by PR count then login (`reviewers`), the same five with their PR counts (`reviewerPRs`), and the full reviewerCount; reviews do not change risk. The departure graph draws reviewerPRs as one collapsed REVIEWED_IN edge per reviewer and area.
 
 ## `06_departure_impact_graph.cypher`
 
@@ -472,7 +472,7 @@ The query follows confidence-qualified participation from the departing person t
 
 **Parameters:** $login, $minShare on combined share, $minConfidence (high or low).
 
-Deduplicate each person/decision/PR before counting; if duplicate links include high confidence, classify that PR as explicit only. Return theirExplicitPRs/explicitPRs and theirTitleMatchPRs/titleMatchPRs alongside combined theirPRs/totalPRs/share. Apply the existing confidence and combined-share filters, aggregate co-openers separately, and sort explicit share first (zero when no explicit PRs), then combined share.
+Deduplicate each person/decision/PR before counting; if duplicate links include high confidence, classify that PR as explicit only. Return theirExplicitPRs/explicitPRs and theirTitleMatchPRs/titleMatchPRs alongside combined theirPRs/totalPRs/share. Apply the existing confidence and combined-share filters, aggregate co-openers separately, and sort explicit share first (zero when no explicit PRs), then combined share. For each decision it also returns `prs` (up to five of the person's PRs with confidence and `via`, explicit links first), the tracking `issue` and the RFC document `rfcPath`, which the decision card turns into GitHub links.
 
 ## `07b_decision_share_graph.cypher`
 
@@ -576,7 +576,7 @@ Starting at the requested file, this path walks backward through a commit and PR
 
 **Parameters:** $slug is the rejected Decision.slug.
 
-This follows SUPERSEDED_BY from the rejected choice to its replacement and issue. It also counts later edits to files connected to the replacement; that evidence gates a drift follow-up question.
+This follows SUPERSEDED_BY from the rejected choice to its replacement and issue, and returns the edge's `rationale` (a verbatim excerpt of the replacement's tracking issue) with `rationaleSource`. It also counts later edits to files connected to the replacement; that evidence gates a drift follow-up question.
 
 ## `10b_why_not_graph.cypher`
 

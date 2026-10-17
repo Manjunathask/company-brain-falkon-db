@@ -149,8 +149,14 @@ export function renderEvidence(panel, graph = {}, options = {}) {
         id: `e${index}`,
         source: String(edge.source),
         target: String(edge.target),
-        label: edge.type || "",
+        // Collapsed edges summarise several records ("reviewed 4 PRs here"); show that, not the type.
+        label: edge.props?.summary || edge.type || "",
       },
+      classes: [
+        String(edge.type || "").toLowerCase(),
+        edge.type === "IMPLEMENTS" && edge.props?.confidence === "low" ? "title-match" : "",
+        edge.props?.collapsed ? "collapsed" : "",
+      ].filter(Boolean).join(" "),
     })),
   ];
 
@@ -178,7 +184,7 @@ export function renderEvidence(panel, graph = {}, options = {}) {
     { selector: "node.file", style: { "background-color": "#1c9d83", shape: "round-rectangle" } },
     { selector: "node.decision", style: { "background-color": "#bf5580", shape: "diamond" } },
     {
-      selector: "node.commit, node.pullrequest, node.issue",
+      selector: "node.commit, node.pr, node.pullrequest, node.issue",
       style: { "background-color": "#9270bd", shape: "hexagon" },
     },
     { selector: "node.no-other-author", style: { "border-width": 4, "border-color": "#a82e2e" } },
@@ -209,6 +215,12 @@ export function renderEvidence(panel, graph = {}, options = {}) {
         "text-background-color": "#fff",
         "text-background-opacity": 0.8,
       },
+    },
+    { selector: "edge.implements", style: { width: 2, "line-color": "#bf5580", "target-arrow-color": "#bf5580" } },
+    { selector: "edge.title-match", style: { "line-style": "dashed" } },
+    {
+      selector: "edge.collapsed",
+      style: { width: 2, "line-style": "dotted", "line-color": "#1c9d83", "target-arrow-color": "#1c9d83" },
     },
     { selector: ":selected", style: { "border-width": 4, "border-color": "#14264a" } },
   ];

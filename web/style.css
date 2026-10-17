@@ -740,6 +740,23 @@ pre,.tool-params {
 .graph-legend span:nth-child(4)::before {
   background:#bf5580
 }
+.graph-legend span:nth-child(5)::before {
+  background:#9270bd
+}
+.graph-legend span.legend-line::before {
+  width:16px;
+  height:0;
+  border-radius:0;
+  background:none;
+  border-top:2px solid #bf5580;
+  vertical-align:middle
+}
+.graph-legend span.legend-line.title-match::before {
+  border-top-style:dashed
+}
+.graph-legend span.legend-line.reviewed::before {
+  border-top:2px dotted #1c9d83
+}
 .node-details h3,.evidence-text h3 {
   font-size:var(--font-sm);
   margin:9px 0 4px
@@ -999,4 +1016,21 @@ pre,.tool-params {
   .picker-section > p {
     display: none;
   }
+}
+.source-links {
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px 12px;
+  margin:6px 0;
+  font-size:var(--font-xs)
+}
+.source-pr small {
+  margin-left:4px;
+  color:var(--muted)
+}
+.source-pr.title-match a {
+  text-decoration-style:dashed
+}
+.tool-table td {
+  white-space:pre-line
 }

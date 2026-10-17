@@ -62,6 +62,49 @@ def parse_rfcs(markdown: str) -> list[dict]:
     return results
 
 
+_LIST_ITEM = re.compile(r"^\s*(?:\d+[.)]|[-*+])\s+")
+RATIONALE_MAX_CHARS = 1200
+
+
+def rationale_excerpt(body: str | None, patterns: list[str], old_issue: int | None) -> str | None:
+    """Return the first paragraph naming the old decision plus the list right after it, verbatim.
+
+    A paragraph matches when it hits one of the old decision's keyword patterns or cites its
+    issue (#2598 or .../issues/2598). Long excerpts are cut at a sentence end. No LLM is involved.
+    """
+    lines = (body or "").replace("\r\n", "\n").split("\n")
+    checks = [re.compile(pattern, re.I) for pattern in patterns]
+    if old_issue:
+        checks.append(re.compile(rf"(?:#|/issues/){old_issue}\b"))
+    hit = next((i for i, line in enumerate(lines) if any(check.search(line) for check in checks)), None)
+    if hit is None:
+        return None
+    start = hit
+    while start > 0 and lines[start - 1].strip() and not lines[start - 1].startswith("#"):
+        start -= 1
+    end = hit
+    while end + 1 < len(lines) and lines[end + 1].strip():
+        end += 1
+    # Take the list that follows the paragraph: items, their indented continuations, and blank lines between items.
+    cursor, in_list = end + 1, False
+    while cursor < len(lines):
+        line = lines[cursor]
+        if not line.strip():
+            cursor += 1
+            continue
+        if _LIST_ITEM.match(line) or (in_list and line.startswith((" ", "\t"))):
+            in_list, end = True, cursor
+            cursor += 1
+            continue
+        break
+    text = "\n".join(lines[start:end + 1]).strip()
+    text = re.sub(r"\n\s*\n", "\n", text)
+    if len(text) > RATIONALE_MAX_CHARS:
+        cut = text.rfind(". ", 0, RATIONALE_MAX_CHARS)
+        text = text[:cut + 1 if cut > 0 else RATIONALE_MAX_CHARS] + " …"
+    return text
+
+
 def main() -> None:
     rows = parse_rfcs(README.read_text(encoding="utf-8"))
     output = ROOT / "data" / "raw" / "rfcs.json"

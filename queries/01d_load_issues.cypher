@@ -1,9 +1,9 @@
 // Answers: load the RFC tracking issues and people who opened or commented on them.
-// Parameters: $rows has issue properties, author/login handle/bot fields, and commenters as {login, handle, bot, at} maps.
+// Parameters: $rows has issue properties (title, state, createdAt, body), author/login handle/bot fields, and commenters as {login, handle, bot, at} maps.
 // Shape: Issue remains a separate label from PR despite GitHub's shared number space; a deleted/missing author uses GitHub's `ghost` placeholder. Comment timestamps retain the latest createdAt value across replays.
 UNWIND $rows AS row
 MERGE (i:Issue {number: row.number})
-SET i.title = row.title, i.state = row.state, i.createdAt = row.createdAt
+SET i.title = row.title, i.state = row.state, i.createdAt = row.createdAt, i.body = row.body
 WITH i, row
 MERGE (author:Person {login: row.author})
 SET author.handle = coalesce(author.handle, row.authorHandle),

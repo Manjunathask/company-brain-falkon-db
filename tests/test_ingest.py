@@ -88,3 +88,27 @@ def test_load_query_reads_known_cypher():
 def test_duplicate_index_error_rule_matches_only_falkordb_duplicate_message():
     assert is_duplicate_index_error(Exception("Attribute 'login' is already indexed"))
     assert not is_duplicate_index_error(Exception("permission denied"))
+
+
+def test_rationale_excerpt_takes_the_matching_paragraph_and_its_list():
+    from busfactor.decision_keywords import KEYWORDS
+    from busfactor.ingest.rfcs import rationale_excerpt
+    body = ("## Protocol Change Request\r\n\r\n### Description\r\nCatalogs broker commits.\r\n\r\n"
+            "Separately, this RFC rejects and replaces the Coordinated Commits RFC.\r\nThe reasons:\r\n\r\n"
+            "1. It competed to own a table.\r\n   It also needed a client.\r\n2. S3 added put-if-absent.\r\n\r\n"
+            "### Willingness to contribute\r\nYes.")
+    text = rationale_excerpt(body, KEYWORDS["managed-commits"], 2598)
+    assert text.startswith("Separately, this RFC rejects and replaces the Coordinated Commits RFC.")
+    assert "   It also needed a client." in text and text.endswith("2. S3 added put-if-absent.")
+    assert "Catalogs broker" not in text and "Willingness" not in text
+    assert rationale_excerpt("See https://github.com/delta-io/delta/issues/2598 for history.", [], 2598) \
+        == "See https://github.com/delta-io/delta/issues/2598 for history."
+    assert rationale_excerpt("Nothing relevant here.", KEYWORDS["managed-commits"], 2598) is None
+    assert rationale_excerpt(None, KEYWORDS["managed-commits"], 2598) is None
+
+
+def test_parse_issue_keeps_body():
+    from busfactor.ingest.github_api import parse_issue
+    row = parse_issue({"number": 4381, "title": "RFC", "state": "OPEN", "createdAt": "2025-04-07T00:00:00Z",
+                       "body": "Why we chose this.", "author": {"login": "someone"}, "comments": {"nodes": []}})
+    assert row["body"] == "Why we chose this."

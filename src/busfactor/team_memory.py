@@ -13,6 +13,11 @@ _OLD_RISK_SENTENCE = re.compile(r"^Component (\S+) risk changed from (.+?) to (.
 _AUTHOR_COUNT = {"orphaned": "0", "no other author": "0", "at risk": "1", "one other author": "1", "covered": "2+"}
 
 
+def observation_label(kind: str | None) -> str:
+    """Say where a shared observation came from: a visitor's unverified claim or a repository refresh."""
+    return "Unverified visitor claim" if kind == "user_claim" else "From repository refresh"
+
+
 def display_text(text: str | None) -> str | None:
     """Rewrite an old-style refresh risk sentence in recent-author terms; leave other text unchanged."""
     match = _OLD_RISK_SENTENCE.match(text or "")
@@ -62,7 +67,8 @@ class TeamMemory:
 
     def snapshot(self, limit: int = 50) -> dict:
         row = self._run("16d_team_list", {"limit": limit})[0]
-        row["observations"] = [{**item, "text": display_text(item.get("text"))} for item in
+        row["observations"] = [{**item, "text": display_text(item.get("text")), "label": observation_label(item.get("kind"))}
+                               for item in
                                sorted(row.get("observations") or [], key=lambda item: item.get("ts") or 0, reverse=True)[:limit]]
         row["refreshRuns"] = [{**run, "observations": [display_text(text) for text in run.get("observations") or []]}
                               for run in sorted(row.get("refreshRuns") or [], key=lambda item: item.get("ts") or 0, reverse=True)[:limit]]

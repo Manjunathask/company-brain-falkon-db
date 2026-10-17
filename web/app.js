@@ -292,6 +292,36 @@ function askAction(parent, question) {
   parent.append(button);
 }
 
+const GITHUB = "https://github.com/delta-io/delta";
+const LINK_KIND = {
+  "issue-ref": "explicit: issue reference",
+  "rfc-doc": "explicit: RFC document",
+  "title-keyword": "title match (keyword guess)",
+};
+
+function externalLink(href, text) {
+  const link = el("a", "source-link", text);
+  link.href = href;
+  link.target = "_blank";
+  link.rel = "noopener";
+  return link;
+}
+
+// Where a decision card's claims come from: the RFC, its tracking issue, and the PRs with how each was linked.
+function sourceLinks(row) {
+  const box = el("div", "source-links");
+  if (row.rfcPath) box.append(externalLink(`${GITHUB}/blob/master/${row.rfcPath}`, "RFC document"));
+  if (row.issue) box.append(externalLink(`${GITHUB}/issues/${row.issue}`, `Tracking issue #${row.issue}`));
+  (row.prs || []).forEach(pr => {
+    const item = el("span", `source-pr ${pr.confidence === "high" ? "explicit" : "title-match"}`);
+    item.append(externalLink(`${GITHUB}/pull/${pr.number}`, `PR #${pr.number}`),
+      el("small", "", LINK_KIND[pr.via] || (pr.confidence === "high" ? "explicit" : "title match")));
+    item.title = pr.title || "";
+    box.append(item);
+  });
+  return box;
+}
+
 function areaCard(row, login, name) {
   const card = el("article", "detail-item");
   const heading = el("h4", "", row.component);
@@ -308,8 +338,13 @@ function areaCard(row, login, name) {
     : "No other recent author with at least 2 commits here.";
   card.append(heading, el("p", "", `${contribution}. ${detail}`));
   const reviewerCount = Number(row.reviewerCount || 0);
+  const reviewerNames = (row.reviewerPRs || []).length
+    ? row.reviewerPRs.map(item => `${item.login} (${item.prs} PR${Number(item.prs) === 1 ? "" : "s"})`)
+    : (row.reviewers || []);
   const reviewText = reviewerCount
-    ? `Reviewed by: ${(row.reviewers || []).join(", ")} (${reviewerCount} active reviewers)`
+    ? `Reviewed by: ${reviewerNames.join(", ")}` +
+      `${reviewerCount > reviewerNames.length ? ` and ${reviewerCount - reviewerNames.length} more` : ""}` +
+      ` · ${reviewerCount} active reviewer${reviewerCount === 1 ? "" : "s"}`
     : (others === 0
       ? "Nobody else authored or reviewed this code in the last 12 months at the stated thresholds."
       : "No other active reviewers in the last 12 months.");
@@ -425,6 +460,7 @@ function renderDeparture(data, login) {
       el("h4", "", row.decision),
       el("p", "", `${explicit} · Title match only: ${row.theirTitleMatchPRs} of ${row.titleMatchPRs}`),
       el("p", "muted", "Title matches are keyword guesses."),
+      sourceLinks(row),
       el("p", "muted", `Other PR authors: ${authors || "none listed"}`),
     );
     askAction(card, `Who else worked on the ${row.decision} decision?`);
@@ -479,13 +515,13 @@ function toolCalls(parent, calls) {
     const item = el("section", "call-card");
     const heading = el("div", "call-title", call.label || call.tool);
     heading.append(el("small", "", `${call.row_count ?? 0} rows · ${call.ms ?? 0} ms`));
-    item.append(
-      heading,
-      el("div", "tool-params", `Parameters\n${JSON.stringify(call.params || {}, null, 2)}`),
-      el("pre", "tool-rows", call.rows
-        ? JSON.stringify(call.rows, null, 2)
-        : `${call.row_count ?? 0} result rows returned; row values are not included in this API trace.`),
-    );
+    const rows = call.rows || [];
+    const shown = Math.min(rows.length, 12);
+    item.append(heading, toolTable(call.tool, rows, shown));
+    if ((call.row_count ?? 0) > shown) {
+      item.append(el("p", "muted", `Showing ${shown} of ${call.row_count} rows.`));
+    }
+    item.append(el("div", "tool-params", `Parameters\n${JSON.stringify(call.params || {}, null, 2)}`));
     const details = document.createElement("details");
     details.append(el("summary", "", "Cypher query"));
     const copy = el("button", "secondary copy-button", "Copy query");
@@ -543,19 +579,27 @@ function answer(result) {
 // Plain labels for the no-key starter tools; unknown fields get readable labels too.
 const toolColumns = {
   successor: [["successor", "Successor"], ["sharedFiles", "Shared files"], ["theirCommits", "Recent commits here"]],
-  why_not: [["rejected", "Rejected decision"], ["chosenInstead", "Chosen instead"], ["evidence", "Evidence"], ["discussion", "Discussion"], ["whoToAsk", "Who to ask"]],
+  why_not: [["rejected", "Rejected decision"], ["chosenInstead", "Chosen instead"], ["rationale", "Stated reason (quoted)"],
+    ["rationaleSource", "Reason source"], ["evidence", "Evidence"], ["discussion", "Discussion"], ["whoToAsk", "Who to ask"]],
   declared_vs_actual: [["module", "Module"], ["declared", "Declared owners"], ["actualTop3", "Most active"], ["ownersNotInTop3", "Owners not in top 3"]],
 };
 
-function readableToolResult(tool, rows, title) {
-  const article = el("article", "chat-message");
-  article.append(el("div", "message-label", title));
+// Plain text for one table cell: lists, capped lists ({items, truncated}) and small maps, never raw JSON.
+function cellText(value) {
+  if (value === null || value === undefined || value === "") return "—";
+  if (Array.isArray(value)) return value.length ? value.map(cellText).join(", ") : "—";
+  if (typeof value === "object") {
+    if (Array.isArray(value.items)) return `${cellText(value.items)} (+${value.truncated} more)`;
+    if (value.login) return value.prs === undefined ? value.login : `${value.login} (${value.prs})`;
+    return Object.entries(value).map(([key, item]) => `${key}: ${cellText(item)}`).join(" · ");
+  }
+  return typeof value === "number" && !Number.isInteger(value) ? value.toFixed(2) : String(value);
+}
+
+function toolTable(tool, rows, limit = 12) {
   const columns = toolColumns[tool] || Object.keys(rows[0] || {}).map(key => [key,
     key.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/^./, char => char.toUpperCase())]);
-  if (!rows.length || !columns.length) {
-    article.append(el("p", "muted", "No matching rows in the current graph."));
-    return article;
-  }
+  if (!rows.length || !columns.length) return el("p", "muted", "No matching rows in the current graph.");
   const table = document.createElement("table");
   table.className = "tool-table";
   const head = document.createElement("thead");
@@ -563,19 +607,24 @@ function readableToolResult(tool, rows, title) {
   columns.forEach(([, label]) => header.append(el("th", "", label)));
   head.append(header);
   const body = document.createElement("tbody");
-  rows.slice(0, 12).forEach(row => {
+  rows.slice(0, limit).forEach(row => {
     const tr = document.createElement("tr");
     columns.forEach(([key]) => {
-      const cell = document.createElement("td");
-      const value = row[key];
-      cell.textContent = Array.isArray(value) ? (value.length ? value.join(", ") : "—")
-        : value === null || value === undefined || value === "" ? "—" : String(value);
+      const cell = el("td", "", cellText(row[key]));
+      if (key === "discussion" && Number.isInteger(row[key])) {
+        cell.replaceChildren(externalLink(`${GITHUB}/issues/${row[key]}`, `#${row[key]}`));
+      }
       tr.append(cell);
     });
     body.append(tr);
   });
   table.append(head, body);
-  article.append(table);
+  return table;
+}
+
+function readableToolResult(tool, rows, title) {
+  const article = el("article", "chat-message");
+  article.append(el("div", "message-label", title), toolTable(tool, rows));
   return article;
 }
 

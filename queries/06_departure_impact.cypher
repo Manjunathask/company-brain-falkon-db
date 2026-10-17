@@ -2,6 +2,7 @@
 // Parameters: $login, $since (epoch ms), $minCommits (both author sides), $componentPrefix, $includeTestResources.
 // Shape: KNOWS.commits is all-history, so count distinct in-window non-bulk commits on current files per person/area.
 // Aggregate remaining authors before reviewers; reviews never change the author risk code.
+// reviewerPRs pairs each listed reviewer with the number of this area's in-window PRs they reviewed.
 MATCH (gone:Person {login: $login})-[:AUTHORED]->(c:Commit)-[:TOUCHED]->(f:File)-[:IN_COMPONENT]->(component:Component)
 WHERE c.ts > $since AND coalesce(gone.bot, false) = false
   AND coalesce(c.bulk, false) = false AND coalesce(f.exists, true) = true
@@ -21,8 +22,10 @@ WHERE reviewer <> gone AND coalesce(reviewer.bot, false) = false AND review.at >
   AND rc.ts > $since AND coalesce(rc.bulk, false) = false AND coalesce(rf.exists, true) = true
 WITH component, theirCommits, remaining, reviewer, count(DISTINCT pr) AS reviewedPRs
 ORDER BY reviewedPRs DESC, reviewer.login
-WITH component, theirCommits, remaining, collect(reviewer.login) AS allReviewers
+WITH component, theirCommits, remaining,
+     collect(CASE WHEN reviewer IS NULL THEN null ELSE {login: reviewer.login, prs: reviewedPRs} END) AS allReviewers
 RETURN component.name AS component, theirCommits, size(remaining) AS expertsLeft, remaining,
-       allReviewers[0..5] AS reviewers, size(allReviewers) AS reviewerCount,
+       [r IN allReviewers[0..5] | r.login] AS reviewers, allReviewers[0..5] AS reviewerPRs,
+       size(allReviewers) AS reviewerCount,
        CASE size(remaining) WHEN 0 THEN 'NO OTHER AUTHOR' WHEN 1 THEN 'ONE OTHER AUTHOR' ELSE 'COVERED' END AS risk
 ORDER BY expertsLeft, reviewerCount, theirCommits DESC, component

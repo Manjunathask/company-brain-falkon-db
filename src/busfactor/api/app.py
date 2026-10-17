@@ -129,14 +129,11 @@ def _focused_departure_graph(login: str, results: dict, components: list[dict]) 
         if node.get("label") == "Person" and login_of(node) in cutoff_logins:
             selected[node["id"]] = {**node, "focusRole": "cut-off"}
 
-    decision_titles = {row.get("decision") for row in results.get("decision_share", {}).get("rows", [])}
-    opener_logins = {opener.get("login") for row in results.get("decision_share", {}).get("rows", [])
-                     for opener in row.get("otherOpeners", [])}
+    decision_rows = results.get("decision_share", {}).get("rows", [])
+    decision_titles = {row.get("decision") for row in decision_rows}
     for node in nodes_by_id.values():
         if node.get("label") == "Decision" and node.get("props", {}).get("title") in decision_titles:
             selected[node["id"]] = {**node, "focusRole": "departure-decision"}
-        elif node.get("label") == "Person" and login_of(node) in opener_logins:
-            selected[node["id"]] = node
 
     successor_logins = {row.get("successor") for row in results.get("successor", {}).get("rows", [])}
     for node in nodes_by_id.values():
@@ -170,13 +167,6 @@ def _focused_departure_graph(login: str, results: dict, components: list[dict]) 
              and source_component in selected_component_names)
         ):
             keep = True
-        elif rel_type in {"OPENED", "IMPLEMENTS"} and (
-            source_login == login or target_login == login or
-            source_login in opener_logins or target_login in opener_logins or
-            (source.get("label") == "Decision" and source.get("props", {}).get("title") in decision_titles) or
-            (target.get("label") == "Decision" and target.get("props", {}).get("title") in decision_titles)
-        ):
-            keep = True
         elif source_component in selected_component_names or target_component in selected_component_names:
             # Successor tool paths contain the shared file/commit evidence for the chosen area.
             if source_login == login or target_login == login or source_login in successor_logins or target_login in successor_logins:
@@ -193,12 +183,60 @@ def _focused_departure_graph(login: str, results: dict, components: list[dict]) 
     for edge in successor_graph.get("edges", []):
         retained_edges[(edge.get("source"), edge.get("type"), edge.get("target"))] = edge
 
-    # Reviewer PRs stay out of the focus graph (they turned it into a ring of PR labels);
-    # reviewers are listed on the area cards and drawn in "Show full evidence".
+    # Decision paths: Person -OPENED-> PR -IMPLEMENTS-> Decision for at most 3 of the person's PRs per decision,
+    # explicit links first (07b already orders its prs that way). Other PR authors stay on the decision card.
+    pr_ids = set()
+    for row in decision_rows:
+        decision = next((n for n in selected.values() if n.get("label") == "Decision"
+                         and n.get("props", {}).get("title") == row.get("decision")), None)
+        if decision is None:
+            decision = {"id": f"focus-decision-{row.get('slug')}", "label": "Decision", "key": row.get("slug"),
+                        "props": {"title": row.get("decision"), "slug": row.get("slug")},
+                        "focusRole": "departure-decision"}
+            retained_nodes[decision["id"]] = decision
+        for pr in (row.get("prs") or [])[:3]:
+            pr_node = next((n for n in nodes_by_id.values() if n.get("label") == "PR"
+                            and n.get("props", {}).get("number") == pr.get("number")), None)
+            pr_node = pr_node or {"id": f"focus-pr-{pr.get('number')}", "label": "PR", "key": pr.get("number"),
+                                  "props": {"number": pr.get("number"), "title": pr.get("title")}}
+            retained_nodes[pr_node["id"]] = pr_node
+            pr_ids.add(pr_node["id"])
+            retained_edges[(person["id"], "OPENED", pr_node["id"])] = {
+                "source": person["id"], "target": pr_node["id"], "type": "OPENED", "props": {}}
+            retained_edges[(pr_node["id"], "IMPLEMENTS", decision["id"])] = {
+                "source": pr_node["id"], "target": decision["id"], "type": "IMPLEMENTS",
+                "props": {"confidence": pr.get("confidence"), "via": pr.get("via")}}
+
+    # Reviewers of areas with no other recent author: one collapsed REVIEWED_IN edge per reviewer and area
+    # (top 3 by PRs reviewed). It summarises REVIEWED -> PR paths, which "Show full evidence" draws in full.
+    for row in risk_rows:
+        if row.get("risk") != "NO OTHER AUTHOR":
+            continue
+        component = next((n for n in selected.values() if n.get("label") == "Component"
+                          and component_of(n) == row.get("component")), None)
+        for reviewer in (row.get("reviewerPRs") or [])[:3]:
+            reviewer_node = next((n for n in nodes_by_id.values() if n.get("label") == "Person"
+                                  and login_of(n) == reviewer.get("login")), None)
+            reviewer_node = reviewer_node or {"id": f"focus-person-{reviewer.get('login')}", "label": "Person",
+                                              "key": reviewer.get("login"), "props": {"login": reviewer.get("login")}}
+            if component is None:
+                continue
+            retained_nodes.setdefault(reviewer_node["id"], reviewer_node)
+            count = int(reviewer.get("prs") or 0)
+            retained_edges[(reviewer_node["id"], "REVIEWED_IN", component["id"])] = {
+                "source": reviewer_node["id"], "target": component["id"], "type": "REVIEWED_IN",
+                "props": {"prs": count, "collapsed": True,
+                          "summary": f"reviewed {count} PR{'' if count == 1 else 's'} here"}}
+
+    # Commit, File and reviewer PR nodes stay out (they turned the graph into a ring of labels).
     readable_nodes = {node_id: node for node_id, node in retained_nodes.items()
-                      if node.get("label") in {"Person", "Component", "Decision"}}
+                      if node.get("label") in {"Person", "Component", "Decision"} or node_id in pr_ids}
     readable_edges = [edge for edge in retained_edges.values()
                       if edge.get("source") in readable_nodes and edge.get("target") in readable_nodes]
+    # Drop people left without a link, except the person leaving.
+    linked = {edge["source"] for edge in readable_edges} | {edge["target"] for edge in readable_edges}
+    readable_nodes = {node_id: node for node_id, node in readable_nodes.items()
+                      if node_id in linked or node_id == person["id"] or node.get("label") != "Person"}
     return {"nodes": list(readable_nodes.values()), "edges": readable_edges}
 
 

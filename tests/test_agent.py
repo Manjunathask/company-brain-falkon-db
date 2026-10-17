@@ -90,6 +90,9 @@ def test_tool_result_is_capped_and_excludes_evidence_graph(monkeypatch):
     assert payload["rows"][0]["paths"] == {"items":[f"path-0-{n}" for n in range(10)],"truncated":2}
     assert "graph" not in payload and len(answer["graph"]["nodes"]) == 200
     assert answer["tool_calls"][0]["tool_result_chars"] == len(json.dumps(result_message["content"][0], ensure_ascii=False))
+    # "How I know" shows the same compacted rows the model saw, with the true total.
+    call = answer["tool_calls"][0]
+    assert call["row_count"] == 50 and call["rows_truncated"] == 10 and call["rows"] == payload["rows"]
 
 
 def test_first_user_message_is_readable_and_omits_empty_memory():

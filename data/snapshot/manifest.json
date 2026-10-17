@@ -3,7 +3,7 @@
   "source": "Public GitHub data from delta-io/delta only; no private or login-protected sources.",
   "repository": "https://github.com/delta-io/delta",
   "git_head_sha": "67684d39637365f8164c7dfbcac07079a32382aa",
-  "exported_at": "2026-10-16T15:39:10.721942+00:00",
+  "exported_at": "2026-10-17T11:50:11.595948+00:00",
   "counts": {
     "git_log": 2240,
     "rfcs": 19,

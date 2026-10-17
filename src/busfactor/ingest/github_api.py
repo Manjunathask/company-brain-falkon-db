@@ -78,6 +78,7 @@ def parse_issue(raw: dict) -> dict:
     return {
         "number": int(raw["number"]), "title": raw.get("title") or "",
         "state": raw.get("state"), "createdAt": _epoch_ms(raw.get("createdAt")),
+        "body": raw.get("body") or "",
         "author": author, "authorHandle": author_handle,
         "authorBot": is_bot(author), "commenters": list(commenters.values()),
     }
@@ -201,7 +202,7 @@ def _rfc_numbers() -> list[int]:
 
 
 PR_FIELDS = "number title state createdAt updatedAt mergedAt body author { login } reviews(first: 30) { nodes { author { login } state submittedAt } }"
-ISSUE_FIELDS = "number title state createdAt author { login } comments(first: 100) { nodes { author { login } createdAt } pageInfo { hasNextPage endCursor } }"
+ISSUE_FIELDS = "number title state createdAt body author { login } comments(first: 100) { nodes { author { login } createdAt } pageInfo { hasNextPage endCursor } }"
 
 
 def _pr_rows(api: GitHubGraphQL, since: str) -> list[dict]:

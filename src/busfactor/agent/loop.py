@@ -224,8 +224,11 @@ def ask(question: str, user: str, session_id: str | None = None, llm=None, *, me
                     result = item["result"]
                     rows = result.get("rows", [])
                     successful_calls.append({"tool":item["name"], "params":item["params"], "rows":rows})
+                    # The UI shows the same compacted rows the model saw; row_count stays the true total.
                     trail.append({"tool":item["name"],"label":graph_tools.TOOL_LABELS.get(item["name"], item["name"]),"params":item["params"],"cypher":result.get("cypher", ""),
-                                  "row_count":len(rows),"ms":item["elapsed"]})
+                                  "row_count":len(rows),"rows":_compact_rows(rows),"ms":item["elapsed"]})
+                    if len(rows) > MAX_TOOL_RESULT_ROWS:
+                        trail[-1]["rows_truncated"] = len(rows) - MAX_TOOL_RESULT_ROWS
                     _merge_graph(evidence, result.get("graph", {}))
                     entities.update(entity_keys(result.get("graph", {})))
                     payload = {"tool":item["name"],"row_count":len(rows),"rows":_compact_rows(rows)}

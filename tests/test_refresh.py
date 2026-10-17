@@ -163,3 +163,9 @@ def test_old_refresh_risk_text_is_shown_as_recent_author_counts():
     assert display_text("alice is no longer Active in the current activity window.") == \
         "alice is no longer Active in the current activity window."
     assert display_text(None) is None
+
+
+def test_team_observations_say_where_they_came_from():
+    from busfactor.team_memory import observation_label
+    assert observation_label("user_claim") == "Unverified visitor claim"
+    assert observation_label("risk_change") == "From repository refresh"

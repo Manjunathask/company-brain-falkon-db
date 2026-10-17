@@ -78,7 +78,7 @@ class Memory:
                     row["changedSinceLastAsked"] = [dict(zip(cols, r)) for r in result.result_set]
         # A correction is shared as a user-provided claim; recall it by entity key
         # even when the current user's private graph has no matching episode.
-        from busfactor.team_memory import TeamMemory
+        from busfactor.team_memory import TeamMemory, observation_label
         related_keys = keys or [row["entity"] for row in rows if row.get("entity")]
         team_rows = (self.team_memory or TeamMemory()).recall(related_keys)
         by_key = {}
@@ -86,7 +86,7 @@ class Memory:
             if item.get("kind") == "user_claim" and item.get("entity"):
                 by_key.setdefault(item["entity"], []).append({
                     "text": item.get("text"), "source": item.get("source"), "ts": item.get("ts"),
-                    "userProvided": True,
+                    "userProvided": True, "label": observation_label(item.get("kind")),
                 })
         for row in rows:
             if row.get("entity") in by_key:

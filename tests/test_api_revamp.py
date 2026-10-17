@@ -250,3 +250,37 @@ def test_live_summary_and_suggestions_are_graph_backed():
         assert len(suggestions) == 4
     finally:
         monkeypatch.undo()
+
+
+def test_focus_graph_keeps_capped_decision_paths_and_collapsed_reviewer_edges():
+    empty = {"graph": {"nodes": [], "edges": []}, "rows": []}
+    results = {
+        "simulation": {"graph": {"nodes": [
+            {"id": "person", "label": "Person", "key": "alice", "props": {"login": "alice"}},
+            {"id": "carol", "label": "Person", "key": "carol", "props": {"login": "carol"}},
+        ], "edges": []}, "rows": [{}]},
+        "impact": {"graph": {"nodes": [
+            {"id": "area", "label": "Component", "key": "flink/kernel", "props": {"name": "flink/kernel"}},
+        ], "edges": []}},
+        "files": empty,
+        "decision_share": {"graph": {"nodes": [
+            {"id": "dec", "label": "Decision", "key": "d", "props": {"title": "Decision D", "slug": "d"}},
+        ], "edges": []}, "rows": [{"decision": "Decision D", "slug": "d", "prs": [
+            {"number": n, "title": f"PR {n}", "confidence": "high" if n == 1 else "low",
+             "via": "issue-ref" if n == 1 else "title-keyword"} for n in (1, 2, 3, 4, 5)]}]},
+        "successor": empty,
+    }
+    focus = api._focused_departure_graph("alice", results, [
+        {"component": "flink/kernel", "risk": "NO OTHER AUTHOR", "theirCommits": 4,
+         "reviewerPRs": [{"login": "bob", "prs": 4}, {"login": "dan", "prs": 1}]},
+    ])
+    labels = [node["label"] for node in focus["nodes"]]
+    assert labels.count("PR") == 3 and "Commit" not in labels and "File" not in labels
+    implements = [edge for edge in focus["edges"] if edge["type"] == "IMPLEMENTS"]
+    assert [edge["props"]["confidence"] for edge in implements] == ["high", "low", "low"]
+    assert sum(edge["type"] == "OPENED" and edge["source"] == "person" for edge in focus["edges"]) == 3
+    reviewed = {edge["source"]: edge["props"] for edge in focus["edges"] if edge["type"] == "REVIEWED_IN"}
+    assert reviewed["focus-person-bob"] == {"prs": 4, "collapsed": True, "summary": "reviewed 4 PRs here"}
+    assert reviewed["focus-person-dan"]["summary"] == "reviewed 1 PR here"
+    # carol has no link in the focus graph, so she is dropped.
+    assert "carol" not in {node["id"] for node in focus["nodes"]}

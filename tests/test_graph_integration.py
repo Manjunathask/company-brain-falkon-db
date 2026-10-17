@@ -9,6 +9,7 @@ from redis.exceptions import RedisError, ResponseError
 from busfactor.db import create_indexes, load_query
 from busfactor.ingest.codeowners import parse_codeowners, rows_for_loading
 from busfactor.ingest.components import component_of
+from busfactor.load import superseded_params
 
 
 pytestmark = pytest.mark.integration
@@ -207,7 +208,11 @@ def test_load_and_derive_queries_end_to_end(graph):
          "component": component_of("protocol_rfcs/catalog-managed.md")},
     ]
     _run(graph, "02_load_decisions", {"rows": decisions})
-    _run(graph, "02b_superseded_by")
+    issue_body = ("## Protocol Change Request\n\nThe catalog brokers commits.\n\n"
+                  "This proposal replaces the Coordinated Commits RFC (#500) because:\n"
+                  "1. It competed to own the table.\n2. A storage primitive made it unnecessary.\n\n"
+                  "### Willingness to contribute\nYes.")
+    _run(graph, "02b_superseded_by", superseded_params(decisions, [{"number": 501, "body": issue_body}]))
     _run(graph, "02c_load_codeowners", {"rows": rows_for_loading(parse_codeowners("/spark/ @MiXeDOwner\n"))})
     assert _count(graph, "(:Decision {slug:'managed-commits'})-[:TRACKED_IN]->(:Issue {number:500})") == 1
     assert _count(graph, "(:Decision {slug:'catalog-managed'})-[:DOCUMENTED_IN]->(:File {path:'protocol_rfcs/catalog-managed.md'})") == 1
@@ -215,9 +220,12 @@ def test_load_and_derive_queries_end_to_end(graph):
     assert _count(graph, "(:File {path:'protocol_rfcs/catalog-managed.md'})-[:IN_COMPONENT]->(:Component {name:'protocol_rfcs/(files)'})") == 1
     superseded = graph.query(
         "MATCH (:Decision {slug:'managed-commits'})-[r:SUPERSEDED_BY]->(:Decision {slug:'catalog-managed'}) "
-        "RETURN r.source"
-    ).result_set[0][0]
-    assert superseded == "PR #4382"
+        "RETURN r.source, r.rationale, r.rationaleSource"
+    ).result_set[0]
+    assert superseded[0] == "PR #4382"
+    assert superseded[1].startswith("This proposal replaces the Coordinated Commits RFC")
+    assert "2. A storage primitive made it unnecessary." in superseded[1] and "Willingness" not in superseded[1]
+    assert superseded[2] == "issue #501"
     owner = graph.query(
         "MATCH (p:Person {login:'mixedowner'})-[r:DECLARED_OWNER]->(:Module {name:'spark'}) "
         "RETURN p.handle, r.pattern"

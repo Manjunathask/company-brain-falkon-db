@@ -7,7 +7,9 @@ import sys
 from redis.exceptions import RedisError
 
 from busfactor.db import ROOT, batched, create_indexes, get_graph, load_query
+from busfactor.decision_keywords import KEYWORDS
 from busfactor.ingest.codeowners import rows_for_loading
+from busfactor.ingest.rfcs import rationale_excerpt
 from busfactor.ingest.components import component_of
 from busfactor.ingest.identity import is_bot, load_api_map, resolve_person_key
 from busfactor.ingest.github_api import references
@@ -40,6 +42,21 @@ def _run_rows(graph, query_name: str, rows: list[dict], label: str) -> None:
     print(f"{label}: rows={len(rows)}, batches={batch_count}; {_counts(graph)}")
 
 
+# Managed Commits (rejected) was superseded by Catalog-Managed Tables; PR #4382's commit message says so.
+SUPERSEDED = {"old": "managed-commits", "new": "catalog-managed", "source": "PR #4382"}
+
+
+def superseded_params(rfcs: list[dict], issues: list[dict]) -> dict:
+    """Build 02b parameters, quoting the replacing decision's tracking issue for the reason when it has one."""
+    issue_of = {row["slug"]: row["issue"] for row in rfcs}
+    body_of = {row["number"]: row.get("body") for row in issues}
+    new_issue = issue_of.get(SUPERSEDED["new"])
+    rationale = rationale_excerpt(body_of.get(new_issue), KEYWORDS.get(SUPERSEDED["old"], []),
+                                  issue_of.get(SUPERSEDED["old"]))
+    return {**SUPERSEDED, "rationale": rationale,
+            "rationaleSource": f"issue #{new_issue}" if rationale and new_issue else None}
+
+
 def load_step(graph, step: str) -> None:
     if step == "indexes":
         create_indexes(graph)
@@ -57,9 +74,10 @@ def load_step(graph, step: str) -> None:
             rows.append(row)
         _run_rows(graph, "01_load_commits", rows, "commits")
     elif step == "decisions":
-        rows = [dict(row, component=component_of(row["path"])) for row in read_rows("rfcs.json")]
+        rfcs = read_rows("rfcs.json")
+        rows = [dict(row, component=component_of(row["path"])) for row in rfcs]
         _run_rows(graph, "02_load_decisions", rows, "decisions")
-        graph.query(load_query("02b_superseded_by"))
+        graph.query(load_query("02b_superseded_by"), superseded_params(rfcs, read_rows("rfc_issues.json")))
         print(f"superseded_by: applied; {_counts(graph)}")
     elif step == "codeowners":
         rows = rows_for_loading(read_rows("codeowners.json"))
