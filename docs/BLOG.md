@@ -6,6 +6,8 @@ When a maintainer leaves, the obvious question is “Who can take over?” The h
 
 Bus Factor is a company brain for the public `delta-io/delta` repository, built on FalkorDB. The headline question is **“What does the project lose if this maintainer leaves?”** The app reports exposed Components, decision participation, collaboration context, and likely successors with graph paths beside each result.
 
+We redesigned the first visit for someone who had never seen the project: no sign-in, the live risk number first, then a ranked maintainer search and named questions. Follow-up chips come from returned graph rows rather than model prose. The developer's own test caught a layout bug where the evidence column pushed answers off-screen; fixing the two-column layout kept the answer and its graph visible together.
+
 The graph is the product because these questions depend on relationships. If we remove it, we lose the departure simulation, candidate ranking, file-to-decision paths, and collaboration analysis. The language model can decide which tool to call and describe returned evidence, but it does not manufacture that evidence.
 
 ## A repository shaped into evidence

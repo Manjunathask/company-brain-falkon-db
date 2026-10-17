@@ -2,6 +2,13 @@
 
 Bus Factor turns the public `delta-io/delta` GitHub repository into a FalkorDB graph of contributors, code, pull requests, RFC decisions, and ownership. It answers **“What does the project lose if this maintainer leaves?”** with graph evidence and inspectable Cypher.
 
+## What you can do
+
+- Start on **What if someone leaves?** with the live bus-factor headline, then search a ranked maintainer list and inspect exposed code areas, decisions, successors, and their graph evidence.
+- Open **Ask** and choose a named starter question or ask in your own words. With a server key, the agent answers from graph tools; **How I know** shows the tool rows and Cypher, the graph appears beside the answer, and graph-based follow-up chips keep the exploration going. Press **Tab** to accept a visible question completion.
+- Explore without signing in. This browser gets an anonymous visitor id for memory; **Start over** clears that visitor's history.
+- Without an Anthropic key, **What if someone leaves?** still works and named starter chips under **Ask** run their graph tools into readable tables; free-form chat says it needs an Anthropic API key on the server.
+
 ## Quick start: Docker
 
 Install Docker with Compose, clone this public repository, and run:
@@ -10,7 +17,7 @@ Install Docker with Compose, clone this public repository, and run:
 docker compose up --build
 ```
 
-The first `docker compose up --build` takes about five minutes to build the image. After that, the app waits for FalkorDB, loads the checked-in public snapshot into an empty `delta` graph, derives its relationships, and serves the UI at [http://127.0.0.1:8000](http://127.0.0.1:8000). Snapshot load, link, and derive took 6.2 seconds against a throwaway graph in local verification; actual bootstrap time depends on the machine. FalkorDB Browser is at [http://127.0.0.1:3000](http://127.0.0.1:3000). The named database volume preserves the graph across restarts. Without an Anthropic key, the departure simulator and direct graph tools work; chat responds with a clear instruction to set `ANTHROPIC_API_KEY`.
+The first `docker compose up --build` takes about five minutes to build the image. After that, the app waits for FalkorDB, loads the checked-in public snapshot into an empty `delta` graph, derives its relationships, and serves the UI at [http://127.0.0.1:8000](http://127.0.0.1:8000). Snapshot load, link, and derive took 6.2 seconds against a throwaway graph in local verification; actual bootstrap time depends on the machine. FalkorDB Browser is at [http://127.0.0.1:3000](http://127.0.0.1:3000). The named database volume preserves the graph across restarts. Without an Anthropic key, **What if someone leaves?** works and named starter chips under **Ask** show readable graph-tool tables; free-form chat explains that it needs a server key.
 
 For chat, set host environment variables before starting Compose:
 
@@ -96,7 +103,7 @@ flowchart LR
   end
 ```
 
-The memory graphs are separate FalkorDB graphs. `Entity.key` (such as `component:kernel/kernel-api`) is joined to the company graph in Python because Cypher does not traverse across graphs. Questions and corrections stay in `mem_<user>`; watcher notes and sourced team claims live in `mem_team`.
+The memory graphs are separate FalkorDB graphs. `Entity.key` (such as `component:kernel/kernel-api`) is joined to the company graph in Python because Cypher does not traverse across graphs. Each anonymous browser visitor has a `mem_v_<id>` graph for questions and corrections; watcher notes and sourced team claims live in the shared `mem_team` graph.
 
 | Label | Stable key | Main properties |
 |---|---|---|
@@ -119,11 +126,11 @@ Important relationships include `AUTHORED`, `TOUCHED`, `IN_MODULE`, `IN_COMPONEN
 
 ## How answers are produced
 
-The agent selects a small set of graph tools; each tool runs its own readable `.cypher` file against FalkorDB. The returned rows and paths form the evidence graph displayed beside the answer, and “How I know” shows the Cypher and parameters. Without an LLM, the same tools and departure simulator remain callable directly.
+The agent selects a small set of graph tools; each tool runs its own readable `.cypher` file against FalkorDB. The returned rows and paths form the **Answer evidence** graph beside the chat, and **How I know** shows readable tool labels, result rows, parameters, and each tool's **Cypher query**. The **What if someone leaves?** view needs no LLM. Without a key, named starter questions under **Ask** call their graph tools directly and render readable tables; free-form chat is disabled with an explanation.
 
-Where the time goes (server log, one departure question): the graph work is fast — one lookup in 19 ms and five departure tools in parallel in 238 ms — while the model spends about 13 s across three rounds, 9.3 s of it writing the final answer. Follow-up questions under each answer are built from the tools' result rows, not from the answer text, so every suggestion refers to something the graph returned.
+Where the time goes (server log, 2026-10-17): graph tools take about 0.3 s, while an answer takes 10–20 s and most of that is model time. Follow-up questions under each answer are built from successful tools' result rows, not from the answer text, so every suggestion refers to something the graph returned.
 
-The UI needs no sign-in: the browser keeps an anonymous visitor id for per-visitor memory, and "Start over" deletes it.
+The UI needs no sign-in: the browser keeps an anonymous visitor id for per-visitor memory, and **Start over** clears that visitor's history and starts a fresh id.
 
 The product uses FalkorDB Cypher and full-text indexes for Decision and PR title search, `algo.betweenness` for collaboration bridges, `algo.WCC` for connected collaboration groups, `GRAPH.COPY` for an isolated departure what-if, and `GRAPH.RO_QUERY` for read-only tools. The graph is required for the simulator, paths, and graph answers.
 
@@ -234,7 +241,7 @@ The app runs locally through Docker Compose; there is no hosted deployment. See 
 
 ## Built with AI assistance
 
-Claude Code (Claude Opus 5.5) reviewed and orchestrated the work; OpenAI Codex implemented it. The plan and graph model in [docs/PLAN.md](docs/PLAN.md) were drafted with Claude (chat) on 14 Oct, before coding began; that was design work only. Every task brief, Codex report, and review round is recorded in [docs/tasks/](docs/tasks/). The reviewer ran a review gate, live integration tests, and the model evaluation in [docs/eval/](docs/eval/). The running agent calls Claude Sonnet 5.5.
+Claude Code (Claude Opus 5.5) reviewed and orchestrated the work; OpenAI Codex implemented it. The plan and graph model in [docs/PLAN.md](docs/PLAN.md) were drafted with Claude (chat) on 14 Oct, before coding began; that was design work only. The UX revamp plan was reviewed by Codex on GPT-6-Astra before implementation and is in [docs/tasks/WP11-*](docs/tasks/). Every task brief, Codex report, and review round is recorded in [docs/tasks/](docs/tasks/). The reviewer ran a review gate, live integration tests, and the model evaluation in [docs/eval/](docs/eval/). The running agent calls Claude Sonnet 5.5.
 
 ## License
 
