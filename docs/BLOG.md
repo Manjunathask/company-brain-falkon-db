@@ -1,45 +1,51 @@
 # The bus factor is a graph question
 
-*Draft for the Graph Hacks side prize. Snapshot figures as of 2026-10-16.*
+*Draft for the Graph Hacks side prize. Figures from the live graph on 2026-10-17.*
 
-When a maintainer leaves, the obvious question is “Who can take over?” The harder questions are: which parts of the code lose their only active expert, which decisions lose the people who discussed them, and what evidence supports a proposed successor? A code search can find files. A directory of documents can find RFCs. Neither makes the connections between people, work, and decisions explicit enough to answer all three questions reliably.
+When a maintainer leaves, the obvious question is “Who can take over?” The harder questions are which parts of the code lose their only recent author, which decisions lose the people who discussed them, what evidence supports a successor, and what should be handed over before the person goes. A code search finds files and a folder of documents finds RFCs, but neither connects people, work and decisions well enough to answer those questions.
 
-Bus Factor is a company brain for the public `delta-io/delta` repository, built on FalkorDB. The headline question is **“What does the project lose if this maintainer leaves?”** The app reports exposed Components, decision participation, collaboration context, and likely successors with graph paths beside each result.
+Bus Factor is a company brain for the public `delta-io/delta` repository, built on FalkorDB. It answers **“What does the project lose if this maintainer leaves?”**, shows the graph path behind each result, and drafts a sourced handover plan for an exposed area.
 
-We redesigned the first visit for someone who had never seen the project: no sign-in, the live risk number first, then a ranked maintainer search and named questions. Follow-up chips come from returned graph rows rather than model prose. The developer's own test caught a layout bug where the evidence column pushed answers off-screen; fixing the two-column layout kept the answer and its graph visible together.
-
-The graph is the product because these questions depend on relationships. If we remove it, we lose the departure simulation, candidate ranking, file-to-decision paths, and collaboration analysis. The language model can decide which tool to call and describe returned evidence, but it does not manufacture that evidence.
+The graph is the product because every one of these answers is a relationship. Remove FalkorDB and the departure view, successor evidence, decision traces, handover packets and shared memory all go. The language model picks tools and summarises their rows; it does not produce the evidence.
 
 ## A repository shaped into evidence
 
-We built a `delta` graph containing people, commits, files, Modules, Components, pull requests, RFC issues, and Decisions. People author commits, commits touch files, files belong to Modules and Components, and commits can link to PRs. PRs reference issues and implement Decisions. CODEOWNERS declarations sit alongside observed expertise, rather than overwriting it. This lets the UI compare who is named as an owner with who recently changed the code.
+The `delta` graph holds people, commits, files, Modules, Components, pull requests, reviews, RFC issues and Decisions. People author commits, commits touch files, files belong to Components (packages inside a Module), commits belong to PRs, people review PRs, and PRs reference issues and implement Decisions. CODEOWNERS declarations sit next to observed work rather than overwriting it.
 
-Components are a finer-grained layer beneath Modules. A large module like `spark` can contain packages with distinct expertise, so the simulator can identify the exposed code area. `KNOWS` holds distinct non-bulk commit counts and last-touch time; `WORKS_WITH` represents recent shared-file overlap; `PARTICIPATED_IN` connects people to decisions through PR and issue activity.
+A checked-in public snapshot (2,240 commits, 3,602 PRs, 19 RFCs and their tracking issues, 220 identity mappings, 4,427 current paths, about 1.7 MiB gzipped) rebuilds the graph in seconds, so judges need no GitHub token.
 
-The public snapshot makes the demo reproducible without a GitHub token. On 2026-10-16 it contained 2,240 parsed commits, 3,602 PRs, 19 RFC rows, 220 email-to-login identity mappings, and 4,427 paths present at the checked-out HEAD. Seven gzip JSON inputs preserve the parsed loader inputs and a manifest records the public source, counts, repository SHA, and export time. The total snapshot directory was about 1.65 MiB. The app can reconstruct the graph, derive relationships, and serve locally from this snapshot.
+## Our first headline was wrong
 
-## Three useful queries
+Our landing page said 42 of 87 active code areas had a bus factor of 1, “in the last 12 months”. A pre-submission review, which we then checked against the live graph, found that the query filtered people by their latest commit but used their commit count over the whole two years. Counting only commits inside the window gives **25 of 69**. The same review found that a leaving person needed just one commit in an area for it to be called orphaned: four of one maintainer's five “orphaned” areas rested on a single commit.
 
-The first query ranks a person's `KNOWS` relationships by recent contribution count and reports how many people cover half the area's observed commits. It gives a compact bus-factor view. The distinct-commit count matters: if a single commit changes 30 files, it should count as one contribution, not 30. This query is useful for ranking exposure, but it depends on the selected activity window and thresholds; it is not a staffing forecast.
+The fix was a query change, not a model change: count in-window commits straight from `AUTHORED` and `TOUCHED`, and apply the same 2-commit threshold to everyone. Because every number lives in a `.cypher` file, the mistake was findable in minutes. That is the strongest argument we know for keeping the queries visible.
 
-The departure-impact query starts from current expertise and checks for other active experts above a minimum contribution threshold. Each area is classified as orphaned, at risk, or covered. Related queries show other active contributors who touched the same current files, a starting point for successor candidates. These are heuristics: the strongest overlap does not prove availability or readiness.
+The review also asked a better question: authorship is one signal, so who reviewed that code? Every area with no other recent author held by the 15 most active people turned out to have between 2 and 11 active reviewers. “Nobody else wrote this” is not “nobody else knows this”. The app now shows reviewers beside each risk label, never folded into it, and labels areas `NO OTHER AUTHOR` instead of “orphaned”.
 
-The decision-trace query starts from a specific File and walks backward through a Commit, PR, Decision, and RFC Issue. It returns readable properties such as PR number and decision title alongside the path. An `IMPLEMENTS` edge keeps both `via` and `confidence`, so a direct issue reference can be distinguished from a keyword match in a PR title. That distinction is central: plausible association is not the same as documented rationale.
+## From finding to handover
 
-The collaboration views use FalkorDB algorithms too. Betweenness ranks bridges in the recent `WORKS_WITH` network; weakly connected components show groups. For a departure what-if, the app copies the graph with `GRAPH.COPY`, removes the person's `Active` label in the temporary graph, recomputes connectivity, and deletes the copy. Read-only tools use `GRAPH.RO_QUERY`; every query stays in its own `.cypher` file.
+For an exposed area, **Draft handover** builds a packet from four queries in under 0.1 s. Candidates are recent authors plus recent reviewers of the area's PRs. Each kind of evidence is its own column, ranked by a plain sort: reviews of the leaving person's PRs first, because that reviewer has already seen the changes. For Hao Jiang's `flink/inttest`, the suggestion is scottsand-db: “Reviewed 2 of Hao Jiang's 3 PRs here; no commits of their own here yet; took part in Catalog-Managed Tables.” The packet adds the PRs to read first, the decisions to preserve with links and quoted reasons, and questions for the person leaving, each tied to the row it came from.
+
+Decision links needed the same honesty. Of 283 PR-to-decision links, 230 come from a keyword in the PR title. Every card now separates explicit links from title matches and calls the latter keyword guesses. Where a source states a reason, we quote it: the Managed Commits rejection is quoted verbatim from tracking issue #4381, parsed at load time rather than written by a model.
+
+## Memory that changes the answer
+
+Memory lives in separate graphs: `mem_v_<id>` per anonymous visitor and a shared `mem_team`, joined to the company graph by `Entity.key` in Python because Cypher does not cross graphs. A saved handover plan goes into `mem_team`. When someone marks scottsand-db unavailable (“on leave until January”), on the page or by telling the chat agent, the next packet skips that person, labels the note unverified, and says what changed: the suggestion moves to kaiqijinwow. Asked for the same handover, the chat agent's `handover_plan` tool reads the same note. Team claims never become repository facts.
+
+## Three queries worth reading
+
+The bus-factor query counts each person's distinct in-window commits per area, sorts them, and reduces until half the total is covered. Distinct commits matter: one commit touching 30 files is one contribution.
+
+The departure query collects remaining authors and active reviewers in separate stages, so one count cannot multiply the other, a FalkorDB lesson we learned the hard way: aggregate with `count(DISTINCT …)` before the next match.
+
+The collaboration what-if copies the graph with `GRAPH.COPY`, removes the person's `Active` label in the copy, recomputes `algo.WCC` groups and `algo.betweenness` bridges, and deletes the copy. Read-only tools run through `GRAPH.RO_QUERY`.
 
 ## What the data taught us
 
-The repository history needed a few deliberate quality rules. Eight broad commits exceeded the configured bulk-file cutoff and are retained for provenance but excluded from expertise and collaboration calculations. At the initial load, 2,143 historical File nodes were absent at current HEAD; deleting them from the graph would have erased useful history, so each file instead has an `exists` flag. Bot identities remain in the evidence graph but do not count as human expertise. Git emails map to public GitHub author logins when available; explicit noreply identities are used when possible, and all other addresses receive an `email:` key instead of a guessed alias.
-
-Decision links were the least complete source. RFC issue references in commit messages are rare, and PR bodies provide stronger explicit evidence. PR titles can add useful context, but keywords are inherently ambiguous. We store those edges as low confidence and allow tools to require high-confidence evidence. The IcebergCompat demo illustrates the limit: the graph can show candidate paths to a decision, but it cannot honestly claim that those paths explain the validator's design unless the source evidence is explicit.
-
-Memory lives in separate `mem_<user>` graphs and a shared `mem_team` graph. User sessions preserve questions, answers, corrections, and entity references; the watcher records team observations during refresh. `Entity.key` connects memory back to a Component, person, Module, or Decision in the company graph. This separation lets sessions persist and coordinate without blending claims into repository facts.
+Eight broad commits are kept for history but excluded from expertise. Files deleted since a commit stay as nodes with `exists=false` instead of disappearing. Bots stay visible but never count as human expertise. Git emails map to public GitHub logins where GitHub says so, and otherwise get an `email:` key rather than a guessed alias.
 
 ## Workflow and limits
 
-The implementation/review loop helped keep the graph inspectable. Claude Code (Claude Opus 5.5) reviewed and orchestrated, OpenAI Codex implemented, and the project records briefs, reports, and review rounds under `docs/tasks/`. Each change was checked against focused query tests and, when available, a live FalkorDB graph; review feedback led to bounded evidence paths, confidence filtering, and a more focused departure view. The agent itself calls Claude Sonnet 5.5 at medium effort. In a five-question evaluation, that configuration took 69 seconds and $0.37 total; Opus 5.5 at medium took 112 seconds and $1.17, while low effort missed one ambiguous question.
+Claude Code (Claude Opus 5.5) planned and reviewed; OpenAI Codex implemented most work packages; Codex on GPT-6-Astra reviewed the project before submission. When Codex ran out of usage, Claude Code finished the measurement fixes and built the evidence and handover packages. Every brief, report and review is in `docs/tasks/`. The running agent uses Claude Sonnet 5.5.
 
-This is not a complete picture of Delta Lake's knowledge. The graph covers a two-year commit window plus RFCs and associated public PR and issue data. It does not read private discussions, understand code semantics, or capture every design conversation. Git history records changes, not ownership, skill, or availability. A title match is only a lead; the simulator should prompt follow-up, not decide an org chart.
-
-When the system cannot establish a reason, it should show the path and say what remains unknown. That honesty is part of the feature.
+This is not a complete picture of Delta Lake's knowledge. The graph covers two years of public commits, PRs, reviews and RFCs. It cannot read private discussions, judge code quality, or know who is available. A suggested successor is a lead for a conversation, not a decision. When the system cannot establish a reason, it should show the path and say what remains unknown. That honesty is part of the feature.

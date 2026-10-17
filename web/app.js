@@ -699,6 +699,19 @@ function renderDeparture(data, login) {
     );
     root.append(card);
   }
+  // The focused graph summarises reviews as one edge per reviewer; the full graph draws the PRs behind them.
+  let full = false;
+  const toggle = el("button", "secondary", "Show full evidence");
+  toggle.type = "button";
+  toggle.onclick = () => {
+    full = !full;
+    toggle.textContent = full ? "Show focused evidence" : "Show full evidence";
+    evidence("leave", full ? data.graph : (data.focus_graph || data.graph), [login], full ? "chat" : "departure");
+  };
+  const toggleRow = el("div", "detail-actions");
+  toggleRow.append(toggle, el("span", "muted",
+    "Full evidence adds the reviewed PRs, commits and files behind the summary edges."));
+  root.append(toggleRow);
   evidence("leave", data.focus_graph || data.graph, [login], "departure");
 }
 
