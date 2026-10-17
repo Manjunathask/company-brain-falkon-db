@@ -68,11 +68,11 @@ The update visits every known file so deletions are reflected even on a refresh 
 
 ## `15b_refresh_component_risk.cypher`
 
-**What it answers:** classify each Component as ORPHANED, AT RISK, or COVERED using current active experts.
+**What it answers:** Count each Component's qualifying recent authors before and after a refresh.
 
-**Parameters:** $since is the activity-window start in epoch milliseconds.
+**Parameters:** $since (epoch ms); the qualifying-author threshold is fixed at 2 commits.
 
-It counts distinct active non-bot Person nodes linked by recent KNOWS edges and applies the same thresholds as the departure-impact query.
+Count distinct in-window non-bulk commits on current files per Active non-bot author, rather than all-history KNOWS totals. Collect authors with at least two commits and retain empty Components. Refresh has no leaving person, so it returns `recentAuthors` and refresh.py reports changes as author counts (0, 1, 2+), not as the departure risk codes. Older team-memory observations that used the retired codes are shown in the same author-count terms; the stored text is not edited.
 
 ## `16_team_write_observation.cypher`
 
@@ -388,51 +388,51 @@ The deletion targets only IMPLEMENTS edges whose sole source is the curated titl
 
 ## `05_bus_factor.cypher`
 
-**What it answers:** calculate how many people cover half of recent commit expertise in each Module.
+**What it answers:** Compute the fewest authors covering at least half of a Module's qualifying recent commits.
 
-**Parameters:** $since is the activity-window start in epoch milliseconds; $minCommits is the minimum person expertise; $minTotal is the minimum module commit total to report.
+**Parameters:** $since (epoch ms), $minCommits per author, $minTotal per area.
 
-This ranks Module expertise by recent KNOWS commit counts and finds how many leading people cover half of the total. Small modules are reported through the filtered count.
+KNOWS totals cover all loaded history, so traverse AUTHORED -> Commit -> TOUCHED -> current File -> IN_MODULE. Exclude bots and bulk commits, count distinct commits per person/module before applying thresholds and ranking, then reduce until half the total is covered. Return countedExperts for the exact authors included in that reduction.
 
 ## `05_bus_factor_graph.cypher`
 
-**What it answers:** show each reported Module and the top experts counted toward its busFactor.
+**What it answers:** Show the exact Module authors counted by the bus-factor table.
 
-**Parameters:** $areas contains {name, count}; $since, $minCommits, and $minTotal match the table filters.
+**Parameters:** $areas contains {name, countedExperts}.
 
-For each reported Module, the query ranks eligible KNOWS edges by commit count and keeps exactly the first busFactor people. Each returned path connects an expert to the Module whose total they contribute to.
+Return KNOWS paths only for the table-selected logins, without re-ranking historical KNOWS counts. The edges establish area membership; the table supplies the recent counts.
 
 ## `05b_bus_factor_component.cypher`
 
-**What it answers:** calculate how many people cover half of recent commit expertise in each Component.
+**What it answers:** Compute the fewest authors covering at least half of a Component's qualifying recent commits.
 
-**Parameters:** $since is the activity-window start in epoch milliseconds; $minCommits is the minimum person expertise; $minTotal is the minimum component commit total to report; $includeTestResources defaults to false.
+**Parameters:** $since (epoch ms), $minCommits per author, $minTotal per area, $includeTestResources.
 
-This applies the same half-coverage calculation at Component level. Component-level results expose the narrower areas that can be hidden inside a Module.
+Traverse authored in-window commits through current files into Components instead of using all-history KNOWS totals. Exclude bots/bulk commits and optionally test-resource areas, aggregate distinct commits per person/area before ranking, and return countedExperts from the half-total reduction.
 
 ## `05b_bus_factor_component_graph.cypher`
 
-**What it answers:** show each reported Component and the top experts counted toward its busFactor.
+**What it answers:** Show the exact Component authors counted by the bus-factor table.
 
-**Parameters:** $areas contains {name, count}; $since, $minCommits, and $minTotal match the table filters.
+**Parameters:** $areas contains {name, countedExperts}.
 
-For each reported Component, the query ranks eligible KNOWS edges and retains the number of experts used by its busFactor. The returned paths show precisely those people and their expertise links.
+Return KNOWS paths only for the table-selected logins, without re-ranking historical KNOWS counts. No global path limit silently drops counted authors.
 
 ## `06_departure_impact.cypher`
 
-**What it answers:** classify the departing person's recent Component expertise by the active experts who remain.
+**What it answers:** Report recent author coverage after a person leaves, with a separate active-reviewer signal.
 
-**Parameters:** $login is the departing person; $since is the activity-window start in epoch milliseconds; $minCommits is the minimum remaining expertise; $componentPrefix optionally narrows component names; $includeTestResources defaults to false.
+**Parameters:** $login, $since (epoch ms), $minCommits on both author sides, $componentPrefix, $includeTestResources.
 
-This lists Components known by the departing person and counts active non-bot experts who remain. Zero remaining experts means orphaned expertise.
+Count distinct in-window, non-bulk commits on current files directly, because KNOWS totals are all-history. Omit areas where the leaving non-bot author fails the threshold; aggregate other Active non-bot authors before matching reviewers. NO OTHER AUTHOR / ONE OTHER AUTHOR / COVERED mean zero / one / at least two remaining qualifying authors. Reviewers must be Active, non-bot, another person, and have REVIEWED.at > $since on a PR with an in-window non-bulk commit touching a current area file. Count distinct area PRs per reviewer, return up to five logins ordered by PR count then login, and the full reviewerCount; reviews do not change risk.
 
 ## `06_departure_impact_graph.cypher`
 
-**What it answers:** show the departing person, affected Components, and active experts who remain.
+**What it answers:** Show exactly the departure table's authors and listed reviewers.
 
-**Parameters:** $login and $components are the departing person and returned Component names.
+**Parameters:** $login, $areas containing {name, remaining, reviewers}, $since (epoch ms).
 
-The query returns a KNOWS path from the departing person to every affected Component, plus paths from active experts who remain. This lets the UI show the coverage behind each risk row.
+Use the leaving login plus each row's remaining logins for KNOWS paths. Anchor the review traversal at each Component, deduplicate qualifying PRs before matching listed reviewers, and keep up to three PRs per reviewer/area (highest PR numbers first). Return REVIEWED -> PR paths separately; do not broaden table membership.
 
 ## `06b_departure_files.cypher`
 
@@ -468,11 +468,11 @@ The query follows confidence-qualified participation from the departing person t
 
 ## `07b_decision_share.cypher`
 
-**What it answers:** find decisions where a person opened at least a requested share of the PRs that implement the decision, and identify other active PR openers to ask.
+**What it answers:** Report combined decision PR ownership with explicit and title-only counts separately.
 
-**Parameters:** $login is the person; $minShare defaults to 0.3; $minConfidence is `high` or `low`.
+**Parameters:** $login, $minShare on combined share, $minConfidence (high or low).
 
-It counts distinct confidence-qualified implementing PRs for the person and for the decision as a whole, then reports their share and active co-openers with their own PR counts. RFC issue commenters do not count as decision ownership.
+Deduplicate each person/decision/PR before counting; if duplicate links include high confidence, classify that PR as explicit only. Return theirExplicitPRs/explicitPRs and theirTitleMatchPRs/titleMatchPRs alongside combined theirPRs/totalPRs/share. Apply the existing confidence and combined-share filters, aggregate co-openers separately, and sort explicit share first (zero when no explicit PRs), then combined share.
 
 ## `07b_decision_share_graph.cypher`
 
@@ -484,11 +484,11 @@ It returns only `Person -OPENED-> PR -IMPLEMENTS-> Decision` paths for selected 
 
 ## `08_successor.cypher`
 
-**What it answers:** rank active non-bot successors for a departing person's Component by shared recent files, then component commits.
+**What it answers:** Rank Active non-bot successors by shared recent files, then recent component commits.
 
-**Parameters:** $login is the departing person; $component is the Component.name; $since is the recent activity cutoff.
+**Parameters:** $login, $component, $since (epoch ms).
 
-The departing person?s recent extant files from non-bulk commits in one Component form the overlap set. Active non-bot candidates are ranked by how many of those current files they touched in non-bulk commits.
+Collect current files touched by the leaving person's in-window non-bulk commits, then aggregate distinct shared files per candidate. Separately count distinct in-window non-bulk commits on all current files in that Component for theirCommits; KNOWS.commits spans all loaded history and cannot supply a recent count.
 
 ## `08_successor_graph.cypher`
 
@@ -604,11 +604,11 @@ This returns accepted decisions and adjacent PR, file, and participant evidence 
 
 ## `12_declared_vs_actual.cypher`
 
-**What it answers:** compare module-level CODEOWNERS declarations with the top three recent, non-bot commit experts.
+**What it answers:** Compare CODEOWNERS with the top three qualifying recent Module authors.
 
-**Parameters:** $since is the activity-window cutoff; $minCommits is minimum KNOWS commits.
+**Parameters:** $since (epoch ms), $minCommits per author/module.
 
-The query collects CODEOWNERS declarations, ranks recent non-bot Module expertise by KNOWS commits, and shows which declared owners are absent from the top three.
+Collect declarations separately, then count distinct in-window non-bulk commits on current files per non-bot person/module before ranking. KNOWS totals are all-history, so they cannot supply recent rankings. Keep modules with no qualifying authors and exclude below-threshold authors from actualTop3.
 
 ## `12_declared_vs_actual_graph.cypher`
 

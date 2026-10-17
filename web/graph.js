@@ -181,8 +181,8 @@ export function renderEvidence(panel, graph = {}, options = {}) {
       selector: "node.commit, node.pullrequest, node.issue",
       style: { "background-color": "#9270bd", shape: "hexagon" },
     },
-    { selector: "node.orphaned", style: { "border-width": 4, "border-color": "#a82e2e" } },
-    { selector: "node.at-risk", style: { "border-width": 4, "border-color": "#ac6b06" } },
+    { selector: "node.no-other-author", style: { "border-width": 4, "border-color": "#a82e2e" } },
+    { selector: "node.one-other-author", style: { "border-width": 4, "border-color": "#ac6b06" } },
     {
       selector: "node.departing",
       style: {

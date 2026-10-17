@@ -133,7 +133,7 @@ def test_simulate_departure_splits_group_and_cleans_copy(graph):
     client = FalkorDB(host=os.getenv("FALKORDB_HOST", "127.0.0.1"), port=int(os.getenv("FALKORDB_PORT", "6379")), password=os.getenv("FALKORDB_PASSWORD") or None)
     delta = client.select_graph('delta')
     try:
-        delta_before = delta.query("MATCH (n) RETURN count(n)").result_set[0][0]
+        delta_before = delta.ro_query("MATCH (n) RETURN count(n)").result_set[0][0]
     except ResponseError:
         delta_before = None
     names_before = set(client.connection.execute_command('GRAPH.LIST'))
@@ -149,7 +149,7 @@ def test_simulate_departure_splits_group_and_cleans_copy(graph):
     assert _snapshot(graph) == fixture_before
     assert set(client.connection.execute_command('GRAPH.LIST')) == names_before
     if delta_before is not None:
-        assert delta.query("MATCH (n) RETURN count(n)").result_set[0][0] == delta_before
+        assert delta.ro_query("MATCH (n) RETURN count(n)").result_set[0][0] == delta_before
     client.close()
 
 
@@ -172,6 +172,8 @@ def test_departure_scope_filters_and_component_prefix(graph):
     graph.query("""
         MATCH (alice:Person {login:'alice'}), (comp:Component {name:'spark/test'})
         CREATE (fixture:Component {name:'spark/test/(test-resources)'})
+        CREATE (alice)-[:AUTHORED]->(c:Commit {sha:'fixture-only',ts:1800000000000})
+        CREATE (c)-[:TOUCHED]->(:File {path:'fixture-only',exists:true})-[:IN_COMPONENT]->(fixture)
         CREATE (alice)-[k:KNOWS]->(fixture) SET k.commits=4,k.lastTouched=1800000000000
     """)
     default = tools.departure_impact("alice", since=0, minCommits=1)
@@ -195,3 +197,145 @@ def _snapshot(graph):
     labels = graph.ro_query("MATCH (n) UNWIND labels(n) AS label RETURN label,count(*) ORDER BY label").result_set
     relationships = graph.ro_query("MATCH ()-[r]->() RETURN type(r),count(*) ORDER BY type(r)").result_set
     return labels, relationships
+
+@pytest.fixture
+def window_graph(graph):
+    """Intentionally misleading KNOWS counts; only commit paths may drive recent risk."""
+    day = 86_400_000
+    since = NOW - 365 * day
+    graph.query("""
+        CREATE (m:Module {name:'window'}), (area:Component {name:'window/core'}),
+               (f:File {path:'window/current',exists:true})-[:IN_COMPONENT]->(area),
+               (f)-[:IN_MODULE]->(m),
+               (f2:File {path:'window/current2',exists:true})-[:IN_COMPONENT]->(area),
+               (f2)-[:IN_MODULE]->(m),
+               (deleted:File {path:'window/deleted',exists:false})-[:IN_COMPONENT]->(area),
+               (deleted)-[:IN_MODULE]->(m)
+        WITH m,area
+        UNWIND ['leaving','oldauthor','peer','robot'] AS login
+        CREATE (p:Person:Active {login:login,bot:login='robot'})
+        CREATE (p)-[:KNOWS {commits:100,lastTouched:$now}]->(area)
+        CREATE (p)-[:KNOWS {commits:100,lastTouched:$now}]->(m)
+    """, {'now': NOW})
+    commits = []
+    for login, count in [('leaving', 3), ('peer', 2), ('oldauthor', 1), ('robot', 10)]:
+        for i in range(count):
+            commits.append({'login': login, 'sha': f'{login}-{i}', 'ts': NOW-day*30,
+                            'bulk': False, 'deleted': False})
+    commits += [{'login':'oldauthor','sha':f'old-{i}','ts':NOW-day*600,
+                 'bulk':False,'deleted':False} for i in range(10)]
+    commits += [dict(login='oldauthor',sha=sha,ts=ts,bulk=bulk,deleted=deleted)
+                for sha,ts,bulk,deleted in [('boundary',since,False,False),
+                                           ('bulk',NOW,True,False),('deleted',NOW,False,True)]]
+    graph.query("""
+        UNWIND $rows AS row
+        MATCH (p:Person {login:row.login})
+        CREATE (p)-[:AUTHORED]->(c:Commit {sha:row.sha,ts:row.ts,bulk:row.bulk})
+        WITH c,row
+        MATCH (f:File) WHERE f.path IN CASE WHEN row.deleted THEN ['window/deleted']
+                                                   ELSE ['window/current','window/current2'] END
+        CREATE (c)-[:TOUCHED]->(f)
+    """, {'rows':commits})
+    return graph, since
+
+
+def test_windowed_counts_thresholds_and_exact_author_graphs(window_graph):
+    graph, since = window_graph
+    params = {**tools.DEFAULTS, 'since': since, 'minTotal': 5}
+    for name, column in [('05_bus_factor','module'), ('05b_bus_factor_component','component')]:
+        result = tools._run(name, params, graph=graph)
+        row = next(row for row in result['rows'] if row[column].startswith('window'))
+        assert row['total'] == 5 and row['people'] == 2
+        assert row['countedExperts'] == ['leaving'] and row['busFactor'] == 1
+        area_nodes = {n['id'] for n in result['graph']['nodes'] if n['key'] == row[column]}
+        nodes = {n['id']:n for n in result['graph']['nodes']}
+        assert {nodes[e['source']]['key'] for e in result['graph']['edges']
+                if e['target'] in area_nodes} == {'leaving'}
+    assert tools.departure_impact('oldauthor', since=since)['rows'] == []
+    one = tools.departure_impact('oldauthor', since=since, minCommits=1)['rows'][0]
+    assert one['theirCommits'] == 1  # ten old commits do not count
+    result = tools.departure_impact('leaving', since=since)
+    row = result['rows'][0]
+    assert row['theirCommits'] == 3
+    assert row['remaining'] == ['peer'] and row['risk'] == 'ONE OTHER AUTHOR'
+    assert row['reviewers'] == [] and row['reviewerCount'] == 0
+    nodes = {n['id']:n for n in result['graph']['nodes']}
+    assert {nodes[e['source']]['key'] for e in result['graph']['edges']} == {'leaving','peer'}
+    successor = tools.successor('leaving','window/core',since=since)['rows']
+    assert next(row for row in successor if row['successor']=='oldauthor')['theirCommits'] == 1
+    owners = tools.declared_vs_actual(since=since)['rows']
+    assert next(row for row in owners if row['module']=='window')['actualTop3'] == ['leaving','peer']
+    risk = tools._run('15b_refresh_component_risk', {'since':since}, graph=graph, include_graph=False)['rows']
+    assert next(row for row in risk if row['component']=='window/core')['recentAuthors'] == 2
+
+
+def test_reviewers_are_separate_qualified_ranked_and_graph_prs_capped(window_graph):
+    graph, since = window_graph
+    graph.query("""
+        MATCH (c:Commit {sha:'leaving-0'}), (c2:Commit {sha:'leaving-1'})
+        UNWIND range(1,4) AS n
+        CREATE (pr:PR {number:10000+n})
+        CREATE (c)-[:PART_OF]->(pr), (c2)-[:PART_OF]->(pr)
+    """)
+    reviewers = [{'login':f'review{i}', 'active':True, 'bot':False,'at':NOW,
+                  'prs':4 if i==0 else 1} for i in range(7)]
+    reviewers += [dict(login=login,active=active,bot=bot,at=at,prs=4)
+                  for login,active,bot,at in [('inactive',False,False,NOW),
+                      ('reviewbot',True,True,NOW),('stale',True,False,since-1),
+                      ('boundary-review',True,False,since),('leaving',True,False,NOW)]]
+    graph.query("""
+        UNWIND $rows AS row
+        MERGE (p:Person {login:row.login}) SET p.bot=row.bot
+        FOREACH (_ IN CASE WHEN row.active THEN [1] ELSE [] END | SET p:Active)
+        WITH row,p
+        MATCH (pr:PR) WHERE pr.number > 10000 AND pr.number <= 10000+row.prs
+        CREATE (p)-[:REVIEWED {at:row.at}]->(pr)
+    """, {'rows':reviewers})
+    # These reviews are fresh, but the only area commit is old, bulk, or deleted.
+    graph.query("""
+        UNWIND ['old-0','bulk','deleted','boundary'] AS sha
+        MATCH (c:Commit {sha:sha})
+        CREATE (:Person:Active {login:'invalid-'+sha,bot:false})-[:REVIEWED {at:$now}]->(pr:PR {number:sha})
+        CREATE (c)-[:PART_OF]->(pr)
+    """, {'now':NOW})
+    result = tools.departure_impact('leaving',since=since)
+    row = result['rows'][0]
+    assert row['theirCommits'] == 3 and row['remaining'] == ['peer']
+    assert row['risk'] == 'ONE OTHER AUTHOR'
+    assert row['reviewerCount'] == 7
+    assert row['reviewers'] == ['review0','review1','review2','review3','review4']
+    nodes = {node['id']:node for node in result['graph']['nodes']}
+    from collections import Counter
+    reviewed = Counter(nodes[e['source']]['key'] for e in result['graph']['edges'] if e['type']=='REVIEWED')
+    assert reviewed == {'review0':3,'review1':1,'review2':1,'review3':1,'review4':1}
+    # With only the leaving author, review evidence still cannot change the author risk.
+    graph.query("MATCH (p:Person {login:'peer'}) REMOVE p:Active")
+    row = tools.departure_impact('leaving',since=since)['rows'][0]
+    assert row['risk'] == 'NO OTHER AUTHOR' and row['reviewerCount'] == 7
+
+
+def test_decision_confidence_partition_and_explicit_share_sort(graph):
+    graph.query("""
+        MATCH (alice:Person {login:'alice'}), (bob:Person {login:'bob'})
+        CREATE (d:Decision {title:'Split',slug:'split'}),
+               (p1:PR {number:991})-[:IMPLEMENTS {confidence:'high'}]->(d),
+               (p1)-[:IMPLEMENTS {confidence:'low'}]->(d),
+               (p2:PR {number:992})-[:IMPLEMENTS {confidence:'low'}]->(d),
+               (p3:PR {number:993})-[:IMPLEMENTS {confidence:'high'}]->(d),
+               (p4:PR {number:994})-[:IMPLEMENTS {confidence:'low'}]->(d),
+               (alice)-[:OPENED]->(p1), (alice)-[:OPENED]->(p2),
+               (bob)-[:OPENED]->(p3), (bob)-[:OPENED]->(p4),
+               (guess:Decision {title:'Guess',slug:'guess'}),
+               (p5:PR {number:995})-[:IMPLEMENTS {confidence:'low'}]->(guess),
+               (alice)-[:OPENED]->(p5)
+    """)
+    rows = tools.decision_share('alice',minShare=0)['rows']
+    row = next(row for row in rows if row['decision']=='Split')
+    assert (row['theirExplicitPRs'],row['explicitPRs'],row['theirTitleMatchPRs'],row['titleMatchPRs']) == (1,2,1,2)
+    for row in rows:
+        assert row['theirExplicitPRs'] + row['theirTitleMatchPRs'] == row['theirPRs']
+        assert row['explicitPRs'] + row['titleMatchPRs'] == row['totalPRs']
+    assert [row['decision'] for row in rows].index('Split') < [row['decision'] for row in rows].index('Guess')
+    high = tools.decision_share('alice',minShare=0,minConfidence='high')['rows']
+    assert all(row['titleMatchPRs']==row['theirTitleMatchPRs']==0 for row in high)
+    assert not any(row['decision']=='Split' for row in tools.decision_share('alice',minShare=0.6)['rows'])

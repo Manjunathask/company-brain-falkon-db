@@ -8,7 +8,7 @@ def _departure(params: dict, rows: list[dict]) -> list[str]:
         return []
     questions = []
     for row in rows:
-        if not row.get("component") or row.get("risk") not in {"ORPHANED", "AT RISK"}:
+        if not row.get("component") or row.get("risk") not in {"NO OTHER AUTHOR", "ONE OTHER AUTHOR"}:
             continue
         person = row.get("name")
         row_login = row.get("login") or login

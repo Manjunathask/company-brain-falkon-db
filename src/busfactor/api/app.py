@@ -101,7 +101,7 @@ def _focused_departure_graph(login: str, results: dict, components: list[dict]) 
         person = {**person, "focusRole": "departing"}
     selected[person["id"]] = person
 
-    risk_rows = sorted((row for row in components if row.get("risk") in {"ORPHANED", "AT RISK"}),
+    risk_rows = sorted((row for row in components if row.get("risk") in {"NO OTHER AUTHOR", "ONE OTHER AUTHOR"}),
                        key=lambda row: (-int(row.get("theirCommits") or 0), row.get("component", "")))[:10]
     selected_component_names = set()
     for row in risk_rows:
@@ -116,7 +116,7 @@ def _focused_departure_graph(login: str, results: dict, components: list[dict]) 
                          "props": {"name": name}}
         component = {**component, "risk": row.get("risk"), "theirCommits": row.get("theirCommits")}
         selected[component["id"]] = component
-        if row.get("risk") == "AT RISK":
+        if row.get("risk") == "ONE OTHER AUTHOR":
             for expert in row.get("remaining", []):
                 expert_node = next((n for n in nodes_by_id.values()
                                     if n.get("label") == "Person" and login_of(n) == expert), None)
@@ -193,6 +193,8 @@ def _focused_departure_graph(login: str, results: dict, components: list[dict]) 
     for edge in successor_graph.get("edges", []):
         retained_edges[(edge.get("source"), edge.get("type"), edge.get("target"))] = edge
 
+    # Reviewer PRs stay out of the focus graph (they turned it into a ring of PR labels);
+    # reviewers are listed on the area cards and drawn in "Show full evidence".
     readable_nodes = {node_id: node for node_id, node in retained_nodes.items()
                       if node.get("label") in {"Person", "Component", "Decision"}}
     readable_edges = [edge for edge in retained_edges.values()
@@ -262,7 +264,7 @@ def departure(login: str):
                    "impact": graph_tools.departure_impact(login),
                    "files": graph_tools.departure_files(login),
                    "decision_share": graph_tools.decision_share(login)}
-        exposed = [row for row in results["impact"]["rows"] if row.get("risk") in {"ORPHANED", "AT RISK"}]
+        exposed = [row for row in results["impact"]["rows"] if row.get("risk") in {"NO OTHER AUTHOR", "ONE OTHER AUTHOR"}]
         chosen = max(exposed, key=lambda row: (int(row.get("theirCommits") or 0), row.get("component", "")), default=None)
         results["successor_component"] = chosen.get("component") if chosen else None
         results["top_orphaned_component"] = results["successor_component"]
@@ -279,8 +281,10 @@ def departure(login: str):
         file_rows = results["files"].get("rows", [])
         results["summary"] = {
             "name": person_name,
-            "orphaned": sum(row.get("risk") == "ORPHANED" for row in impact_rows),
-            "atRisk": sum(row.get("risk") == "AT RISK" for row in impact_rows),
+            "noOtherAuthor": sum(row.get("risk") == "NO OTHER AUTHOR" for row in impact_rows),
+            "noOtherAuthorOrReviewer": sum(row.get("risk") == "NO OTHER AUTHOR"
+                                            and row.get("reviewerCount", 0) == 0 for row in impact_rows),
+            "oneOtherAuthor": sum(row.get("risk") == "ONE OTHER AUTHOR" for row in impact_rows),
             "orphanedFiles": sum(int(row.get("orphanedFiles") or 0) for row in file_rows),
             "cutOff": len(simulation_row.get("cutOff") or []),
             "mainGroupBefore": simulation_row.get("mainGroupBefore"),
@@ -321,7 +325,7 @@ def summary():
                      for row in sorted((r for r in reportable if r.get("busFactor") == 1),
                                        key=lambda r: (-int(r.get("total") or 0), r["component"]))[:3]],
         "snapshotDate": snapshot_date,
-        "dataWindow": "2 years loaded; risk uses the last 12 months and at least 2 commits",
+        "dataWindow": "2 years loaded; risk counts commits from the last 12 months; a person needs 2+ such commits in an area",
     }
 
 

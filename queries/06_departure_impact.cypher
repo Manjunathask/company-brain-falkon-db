@@ -1,18 +1,28 @@
-// Answers: classify the departing person's recent Component expertise by the active experts who remain.
-// Parameters: $login is the departing person; $since is the activity-window start in epoch milliseconds; $minCommits is the minimum remaining expertise; $componentPrefix optionally narrows component names; $includeTestResources includes fixture-only components when true.
-// Shape: use Component KNOWS edges for the departing person, filter scope explicitly, and collect distinct qualified people in one optional match to avoid multiplying commit totals.
-MATCH (gone:Person {login: $login})-[gk:KNOWS]->(component:Component)
-WHERE gk.lastTouched > $since AND coalesce(gone.bot, false) = false
+// Answers: report areas with 2+ (or $minCommits) recent commits by the leaving person, remaining authors, and separate review evidence.
+// Parameters: $login, $since (epoch ms), $minCommits (both author sides), $componentPrefix, $includeTestResources.
+// Shape: KNOWS.commits is all-history, so count distinct in-window non-bulk commits on current files per person/area.
+// Aggregate remaining authors before reviewers; reviews never change the author risk code.
+MATCH (gone:Person {login: $login})-[:AUTHORED]->(c:Commit)-[:TOUCHED]->(f:File)-[:IN_COMPONENT]->(component:Component)
+WHERE c.ts > $since AND coalesce(gone.bot, false) = false
+  AND coalesce(c.bulk, false) = false AND coalesce(f.exists, true) = true
   AND ($componentPrefix = '' OR component.name STARTS WITH $componentPrefix)
   AND ($includeTestResources OR NOT component.name ENDS WITH '/(test-resources)')
-OPTIONAL MATCH (other:Person:Active)-[ok:KNOWS]->(component)
+WITH gone, component, count(DISTINCT c) AS theirCommits
+WHERE theirCommits >= $minCommits
+OPTIONAL MATCH (other:Person:Active)-[:AUTHORED]->(oc:Commit)-[:TOUCHED]->(of:File)-[:IN_COMPONENT]->(component)
 WHERE other <> gone AND coalesce(other.bot, false) = false
-  AND ok.lastTouched > $since AND ok.commits >= $minCommits
-WITH component, gk, collect(DISTINCT other.login) AS remaining
-RETURN component.name AS component,
-       gk.commits AS theirCommits,
-       size(remaining) AS expertsLeft,
-       remaining,
-       CASE size(remaining) WHEN 0 THEN 'ORPHANED' WHEN 1 THEN 'AT RISK' ELSE 'COVERED' END AS risk
-ORDER BY CASE risk WHEN 'ORPHANED' THEN 0 WHEN 'AT RISK' THEN 1 ELSE 2 END,
-         theirCommits DESC, component
+  AND oc.ts > $since AND coalesce(oc.bulk, false) = false AND coalesce(of.exists, true) = true
+WITH gone, component, theirCommits, other, count(DISTINCT oc) AS otherCommits
+ORDER BY otherCommits DESC, other.login
+WITH gone, component, theirCommits,
+     collect(CASE WHEN otherCommits >= $minCommits THEN other.login ELSE null END) AS remaining
+OPTIONAL MATCH (reviewer:Person:Active)-[review:REVIEWED]->(pr:PR)<-[:PART_OF]-(rc:Commit)-[:TOUCHED]->(rf:File)-[:IN_COMPONENT]->(component)
+WHERE reviewer <> gone AND coalesce(reviewer.bot, false) = false AND review.at > $since
+  AND rc.ts > $since AND coalesce(rc.bulk, false) = false AND coalesce(rf.exists, true) = true
+WITH component, theirCommits, remaining, reviewer, count(DISTINCT pr) AS reviewedPRs
+ORDER BY reviewedPRs DESC, reviewer.login
+WITH component, theirCommits, remaining, collect(reviewer.login) AS allReviewers
+RETURN component.name AS component, theirCommits, size(remaining) AS expertsLeft, remaining,
+       allReviewers[0..5] AS reviewers, size(allReviewers) AS reviewerCount,
+       CASE size(remaining) WHEN 0 THEN 'NO OTHER AUTHOR' WHEN 1 THEN 'ONE OTHER AUTHOR' ELSE 'COVERED' END AS risk
+ORDER BY expertsLeft, reviewerCount, theirCommits DESC, component

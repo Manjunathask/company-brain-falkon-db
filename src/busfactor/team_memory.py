@@ -3,8 +3,24 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 import hashlib
+import re
 
 from busfactor.db import get_client, load_query
+
+# Refresh observations written before 17 Oct used departure risk codes ("orphaned", "at risk").
+# Stored text is never edited; it is shown as a recent-author count instead.
+_OLD_RISK_SENTENCE = re.compile(r"^Component (\S+) risk changed from (.+?) to (.+?)\.$")
+_AUTHOR_COUNT = {"orphaned": "0", "no other author": "0", "at risk": "1", "one other author": "1", "covered": "2+"}
+
+
+def display_text(text: str | None) -> str | None:
+    """Rewrite an old-style refresh risk sentence in recent-author terms; leave other text unchanged."""
+    match = _OLD_RISK_SENTENCE.match(text or "")
+    if not match:
+        return text
+    component, old, new = match.groups()
+    old, new = (_AUTHOR_COUNT.get(value.lower(), value) for value in (old, new))
+    return f"Component {component} recent authors changed from {old} to {new}."
 
 
 class TeamMemory:
@@ -31,7 +47,8 @@ class TeamMemory:
         })[0]
 
     def recall(self, keys: list[str] | None = None) -> list[dict]:
-        return self._run("16b_team_recall", {"keys": keys or []})
+        return [{**row, "text": display_text(row.get("text"))}
+                for row in self._run("16b_team_recall", {"keys": keys or []})]
 
     def record_refresh(self, *, ts: int, new_commits: int, new_prs: int,
                        observation_ids: list[str]) -> dict:
@@ -45,6 +62,8 @@ class TeamMemory:
 
     def snapshot(self, limit: int = 50) -> dict:
         row = self._run("16d_team_list", {"limit": limit})[0]
-        row["observations"] = sorted(row.get("observations") or [], key=lambda item: item.get("ts") or 0, reverse=True)[:limit]
-        row["refreshRuns"] = sorted(row.get("refreshRuns") or [], key=lambda item: item.get("ts") or 0, reverse=True)[:limit]
+        row["observations"] = [{**item, "text": display_text(item.get("text"))} for item in
+                               sorted(row.get("observations") or [], key=lambda item: item.get("ts") or 0, reverse=True)[:limit]]
+        row["refreshRuns"] = [{**run, "observations": [display_text(text) for text in run.get("observations") or []]}
+                              for run in sorted(row.get("refreshRuns") or [], key=lambda item: item.get("ts") or 0, reverse=True)[:limit]]
         return row

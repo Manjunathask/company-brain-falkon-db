@@ -14,14 +14,15 @@ pytestmark = pytest.mark.integration
 # Keep this contract in sync with the departure renderer and WP11a response shape.
 DEPARTURE_FIELDS = {
     "simulation": {"rows", "login", "mainGroupBefore", "mainGroupAfter", "cutOff", "betweennessRank"},
-    "impact": {"rows", "component", "risk", "expertsLeft", "theirCommits", "remaining"},
+    "impact": {"rows", "component", "risk", "expertsLeft", "theirCommits", "remaining", "reviewers", "reviewerCount"},
     "files": {"rows", "component", "orphanedFiles", "theirFiles", "examplePaths"},
-    "decision_share": {"rows", "decision", "theirPRs", "totalPRs", "share", "otherOpeners", "login", "prs"},
+    "decision_share": {"rows", "decision", "theirPRs", "totalPRs", "share", "otherOpeners", "login", "prs",
+                       "theirExplicitPRs", "explicitPRs", "theirTitleMatchPRs", "titleMatchPRs"},
     "successor": {"rows", "successor", "sharedFiles", "outOf", "theirCommits"},
     "graph": {"nodes", "edges"},
     "focus_graph": {"nodes", "edges"},
     "successor_component": set(),
-    "summary": {"name", "orphaned", "atRisk", "orphanedFiles", "cutOff",
+    "summary": {"name", "noOtherAuthor", "noOtherAuthorOrReviewer", "oneOtherAuthor", "orphanedFiles", "cutOff",
                 "mainGroupBefore", "mainGroupAfter", "bridgeRank"},
 }
 
@@ -134,10 +135,10 @@ def test_departure_payload_matches_app_field_contract(graph, monkeypatch):
                   "cutOff": ["cutoff"], "betweennessRank": 1}], "graph": empty_graph})
     monkeypatch.setattr(api_module.graph_tools, "departure_impact", lambda login: {
         "rows": [
-            {"component": "unit/core", "risk": "AT RISK", "expertsLeft": 1,
-             "theirCommits": 12, "remaining": ["expert"]},
-            {"component": "unit/rare", "risk": "ORPHANED", "expertsLeft": 0,
-             "theirCommits": 4, "remaining": []},
+            {"component": "unit/core", "risk": "ONE OTHER AUTHOR", "expertsLeft": 1,
+             "theirCommits": 12, "remaining": ["expert"], "reviewers": ["reviewer"], "reviewerCount": 1},
+            {"component": "unit/rare", "risk": "NO OTHER AUTHOR", "expertsLeft": 0,
+             "theirCommits": 4, "remaining": [], "reviewers": [], "reviewerCount": 0},
         ],
         "graph": {"nodes": [
             {"id": 1, "label": "Person", "key": login, "props": {"login": login, "name": "Departing"}},
@@ -150,6 +151,7 @@ def test_departure_payload_matches_app_field_contract(graph, monkeypatch):
                   "examplePaths": ["unit/core/A.scala"]}], "graph": empty_graph})
     monkeypatch.setattr(api_module.graph_tools, "decision_share", lambda login: {
         "rows": [{"decision": "Decision A", "theirPRs": 2, "totalPRs": 4, "share": 0.5,
+                      "theirExplicitPRs": 1, "explicitPRs": 2, "theirTitleMatchPRs": 1, "titleMatchPRs": 2,
                       "otherOpeners": [{"login": "opener", "prs": 2}]}], "graph": empty_graph})
     monkeypatch.setattr(api_module.graph_tools, "successor", lambda login, component: {
         "rows": [{"successor": "expert", "sharedFiles": 3, "outOf": 5, "theirCommits": 7}],
@@ -176,9 +178,9 @@ def test_departure_payload_matches_app_field_contract(graph, monkeypatch):
             assert names <= data[section].keys()
     assert data["successor_component"] == "unit/core"
     assert data["successor"]["rows"][0]["theirCommits"] == 7
-    assert any(node.get("risk") == "AT RISK" for node in data["focus_graph"]["nodes"])
+    assert any(node.get("risk") == "ONE OTHER AUTHOR" for node in data["focus_graph"]["nodes"])
     assert data["summary"] == {
-        "name": "Departing", "orphaned": 1, "atRisk": 1, "orphanedFiles": 2,
+        "name": "Departing", "noOtherAuthor": 1, "noOtherAuthorOrReviewer": 1, "oneOtherAuthor": 1, "orphanedFiles": 2,
         "cutOff": 1, "mainGroupBefore": 4, "mainGroupAfter": 3, "bridgeRank": 1,
     }
 

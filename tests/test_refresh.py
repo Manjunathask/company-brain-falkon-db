@@ -57,8 +57,8 @@ class _FixtureGraph:
             return _Result(["newestCommit", "newestPR"], [[1_000_000, 1_000_000]])
         if "MATCH (component:Component)" in query:
             self.risk_reads += 1
-            return _Result(["component", "expertsLeft", "risk"], [["kernel/api", 0, "ORPHANED"]]
-                           if self.risk_reads == 1 else [["kernel/api", 2, "COVERED"]])
+            return _Result(["component", "recentAuthors"], [["kernel/api", 0]]
+                           if self.risk_reads == 1 else [["kernel/api", 2]])
         if "Person:Active" in query:
             self.active_reads += 1
             return _Result(["p.login"], [["alice"]] if self.active_reads == 1 else [])
@@ -100,7 +100,8 @@ def test_refresh_runner_respects_watermarks_loads_only_new_and_writes_risk_obser
                                 pr_page_fetcher=fetch, team_memory=team)
     assert result["newCommits"] == 1
     assert result["newPRs"] == 1
-    assert result["riskChanges"] == [("kernel/api", "ORPHANED", "COVERED")]
+    assert result["riskChanges"] == [("kernel/api", "0", "2+")]
+    assert team.observations[0]["text"] == "Component kernel/api recent authors changed from 0 to 2+."
     assert result["becameInactive"] == ["alice"]
     assert len(team.observations) == 3  # risk change, inactive person, decision activity
     assert team.refresh["new_commits"] == 1 and team.refresh["new_prs"] == 1
@@ -151,3 +152,14 @@ def test_team_correction_cross_user_and_team_graph_integration():
             try: client.connection.execute_command("GRAPH.DELETE", name)
             except ResponseError: pass
         client.close()
+
+
+def test_old_refresh_risk_text_is_shown_as_recent_author_counts():
+    from busfactor.team_memory import display_text
+    assert (display_text("Component spark/v2/tablemanager risk changed from AT RISK to COVERED.")
+            == "Component spark/v2/tablemanager recent authors changed from 1 to 2+.")
+    assert (display_text("Component flink/kernel risk changed from unknown to ORPHANED.")
+            == "Component flink/kernel recent authors changed from unknown to 0.")
+    assert display_text("alice is no longer Active in the current activity window.") == \
+        "alice is no longer Active in the current activity window."
+    assert display_text(None) is None

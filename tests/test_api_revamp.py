@@ -72,7 +72,7 @@ def test_suggestions_are_named_and_have_direct_tool_params(monkeypatch):
 
 
 @pytest.mark.parametrize(("tool", "params", "rows", "expected"), [
-    ("departure_impact", {"login": "alice"}, [{"component": "spark/core", "risk": "ORPHANED"}],
+    ("departure_impact", {"login": "alice"}, [{"component": "spark/core", "risk": "NO OTHER AUTHOR"}],
      "Who could take over spark/core if alice left?"),
     ("decision_share", {}, [{"decision": "Catalog Tables"}], "Who else worked on Catalog Tables?"),
     ("simulate_departure", {"login": "alice"}, [{"cutOff": ["bob"]}],
@@ -87,10 +87,10 @@ def test_followup_template_by_tool(tool, params, rows, expected):
 
 def test_followups_skip_unsupported_rows_deduplicate_and_cap():
     calls = [{"tool": "departure_impact", "params": {"login": "alice"}, "rows": [
-        {"component": "allowed", "risk": "AT RISK"}, {"component": "not-risky", "risk": "COVERED"},
-        {"component": "allowed", "risk": "ORPHANED"}]},
+        {"component": "allowed", "risk": "ONE OTHER AUTHOR"}, {"component": "not-risky", "risk": "COVERED"},
+        {"component": "allowed", "risk": "NO OTHER AUTHOR"}]},
         {"tool": "departure_impact", "params": {"login": "alice"}, "rows": [
-            {"component": "c2", "risk": "ORPHANED"}, {"component": "c3", "risk": "ORPHANED"}]}]
+            {"component": "c2", "risk": "NO OTHER AUTHOR"}, {"component": "c3", "risk": "NO OTHER AUTHOR"}]}]
     result = build_followups(calls)
     assert len(result) == 2
     assert all("not-risky" not in item for item in result)
@@ -101,9 +101,9 @@ def test_followups_skip_unsupported_rows_deduplicate_and_cap():
 def test_followups_round_robin_limit_per_tool_and_skip_asked_question():
     calls = [
         {"tool": "departure_impact", "params": {"login": "murali-db"}, "rows": [
-            {"component": "spark", "risk": "AT RISK", "login": "murali-db", "name": "Murali Ramanujam"},
-            {"component": "kernel", "risk": "ORPHANED", "login": "murali-db", "name": "Murali Ramanujam"},
-            {"component": "flink", "risk": "ORPHANED", "login": "murali-db", "name": "Murali Ramanujam"},
+            {"component": "spark", "risk": "ONE OTHER AUTHOR", "login": "murali-db", "name": "Murali Ramanujam"},
+            {"component": "kernel", "risk": "NO OTHER AUTHOR", "login": "murali-db", "name": "Murali Ramanujam"},
+            {"component": "flink", "risk": "NO OTHER AUTHOR", "login": "murali-db", "name": "Murali Ramanujam"},
         ]},
         {"tool": "decision_share", "params": {}, "rows": [
             {"decision": "Catalog Tables"}, {"decision": "Protocol V3"},
@@ -130,7 +130,7 @@ def test_unknown_person_is_404_before_simulation(client, monkeypatch):
 def test_departure_summary_fields(client):
     data = client.get("/api/departure/alice").json()
     assert data["summary"]["name"] == "Alice"
-    assert {"orphaned", "atRisk", "orphanedFiles", "cutOff", "mainGroupBefore",
+    assert {"noOtherAuthor", "noOtherAuthorOrReviewer", "oneOtherAuthor", "orphanedFiles", "cutOff", "mainGroupBefore",
             "mainGroupAfter", "bridgeRank"} <= data["summary"].keys()
 
 
@@ -145,15 +145,21 @@ def test_focused_departure_graph_omits_commit_and_file_nodes():
             {"source": "person", "target": "commit", "type": "AUTHORED"},
             {"source": "commit", "target": "file", "type": "TOUCHED"},
         ]}},
-        "impact": {"graph": {"nodes": [], "edges": []}},
+        "impact": {"graph": {"nodes": [
+            {"id": "reviewer", "label": "Person", "key": "bob", "props": {"login": "bob"}},
+            {"id": "pr", "label": "PR", "props": {"number": 7}},
+        ], "edges": [
+            {"source": "reviewer", "target": "pr", "type": "REVIEWED"},
+        ]}},
         "files": {"graph": {"nodes": [], "edges": []}},
         "decision_share": {"graph": {"nodes": [], "edges": []}, "rows": []},
         "successor": {"graph": {"nodes": [], "edges": []}, "rows": []},
     }
     focus = api._focused_departure_graph("alice", graph, [
-        {"component": "spark/core", "risk": "ORPHANED", "theirCommits": 8},
+        {"component": "spark/core", "risk": "NO OTHER AUTHOR", "theirCommits": 8, "reviewers": ["bob"]},
     ])
     assert all(node["label"] in {"Person", "Component", "Decision"} for node in focus["nodes"])
+    assert all(edge["type"] != "REVIEWED" for edge in focus["edges"])
     ids = {node["id"] for node in focus["nodes"]}
     assert all(edge["source"] in ids and edge["target"] in ids for edge in focus["edges"])
 
@@ -239,8 +245,8 @@ def test_live_summary_and_suggestions_are_graph_backed():
         with TestClient(api.app) as live_client:
             summary = live_client.get("/api/summary").json()
             suggestions = live_client.get("/api/suggestions").json()["suggestions"]
-        assert abs(summary["busFactorOne"] - 42) <= 5
-        assert abs(summary["componentsReported"] - 87) <= 5
+        assert abs(summary["busFactorOne"] - 25) <= 5
+        assert abs(summary["componentsReported"] - 69) <= 5
         assert len(suggestions) == 4
     finally:
         monkeypatch.undo()

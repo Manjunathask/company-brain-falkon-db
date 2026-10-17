@@ -334,12 +334,13 @@ def test_component_bus_factor_and_orphaned_file_queries(graph):
     }).result_set
     answer = next(item for item in row if item[0] == "spark/wp5-bus")
     assert answer[1] == 1
-    assert answer[4:6] == [2, 4]
+    assert answer[5:7] == [2, 4]
+    assert answer[2] == ["wp5gone"]
     filtered = graph.query(load_query("05b_bus_factor_component"), {
         "since": SINCE, "minCommits": 1, "minTotal": 5, "includeTestResources": False,
     }).result_set
     assert not any(item[0] == "spark/wp5-bus" for item in filtered)
-    assert filtered[0][6] >= 1
+    assert filtered[0][7] >= 1
 
 
 def test_deleted_file_is_not_reported_and_bulk_commit_stays_traceable(graph):

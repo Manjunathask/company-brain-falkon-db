@@ -103,7 +103,10 @@ def _graph_for(name: str, rows: list[dict], graph=None, main_params: dict | None
     params.update(main_params or {})
     if name in {"05_bus_factor", "05b_bus_factor_component"}:
         key = "module" if name == "05_bus_factor" else "component"
-        params["areas"] = [{"name": row[key], "count": row["busFactor"]} for row in rows if row.get(key) is not None]
+        params["areas"] = [{"name": row[key], "countedExperts": row["countedExperts"]} for row in rows if row.get(key) is not None]
+    elif name == "06_departure_impact":
+        params["areas"] = [{"name": row["component"], "remaining": row["remaining"],
+                            "reviewers": row["reviewers"]} for row in rows]
     elif name == "07_orphaned_decisions":
         params["decisions"] = [row["decision"] for row in rows]
     elif name == "07b_decision_share":
@@ -164,7 +167,7 @@ def bus_factor_component(since: int | None = None, minCommits: int | None = None
 
 def departure_impact(login: str, since: int | None = None, minCommits: int | None = None,
                      componentPrefix: str = "", includeTestResources: bool = False) -> dict:
-    """Show Components where this active maintainer has expertise and how many active experts remain."""
+    """Show areas with qualifying recent authorship, remaining recent authors, and separate active reviewers."""
     return _run("06_departure_impact", {"login":login,"since":since or DEFAULTS["since"],"minCommits":minCommits or DEFAULTS["minCommits"],"componentPrefix":componentPrefix,"includeTestResources":includeTestResources})
 
 def departure_files(login: str, since: int | None = None, componentPrefix: str = "",

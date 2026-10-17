@@ -295,7 +295,7 @@ function askAction(parent, question) {
 function areaCard(row, login, name) {
   const card = el("article", "detail-item");
   const heading = el("h4", "", row.component);
-  const badgeClass = row.risk === "ORPHANED" ? "orphan" : "at-risk";
+  const badgeClass = row.risk === "NO OTHER AUTHOR" ? "orphan" : "at-risk";
   heading.append(" ", el("span", `risk-badge ${badgeClass}`, row.risk));
 
   const display = `${name} (@${login})`;
@@ -303,10 +303,17 @@ function areaCard(row, login, name) {
   const others = Number(row.expertsLeft || 0);
   const contribution = `${display} wrote ${commits} recent commit${commits === 1 ? "" : "s"} here`;
   const detail = others
-    ? `${others} other active contributor${others === 1 ? "" : "s"} ` +
+    ? `${others} other recent author${others === 1 ? "" : "s"} ` +
       `remain${others === 1 ? "s" : ""}: ${(row.remaining || []).join(", ")}.`
-    : "No other active contributor with at least 2 recent commits.";
+    : "No other recent author with at least 2 commits here.";
   card.append(heading, el("p", "", `${contribution}. ${detail}`));
+  const reviewerCount = Number(row.reviewerCount || 0);
+  const reviewText = reviewerCount
+    ? `Reviewed by: ${(row.reviewers || []).join(", ")} (${reviewerCount} active reviewers)`
+    : (others === 0
+      ? "Nobody else authored or reviewed this code in the last 12 months at the stated thresholds."
+      : "No other active reviewers in the last 12 months.");
+  card.append(el("p", "muted", reviewText));
 
   const actions = el("div", "detail-actions");
   const successors = el("button", "secondary", "Show successors");
@@ -349,9 +356,11 @@ function renderDeparture(data, login) {
   const sentence = el(
     "p",
     "departure-sentence",
-    `If ${name} left: ${summary.orphaned ?? countRisk(data, "ORPHANED")} code areas ` +
-      "would have no other active contributor with at least 2 recent commits, " +
-      `${summary.atRisk ?? countRisk(data, "AT RISK")} would rely on one remaining person, ` +
+    `If ${name} left: ${summary.noOtherAuthor ?? countRisk(data, "NO OTHER AUTHOR")} code areas ` +
+      "where they made 2+ commits in the last 12 months would have no other recent author " +
+      `(${(summary.noOtherAuthor ?? countRisk(data, "NO OTHER AUTHOR")) -
+        (summary.noOtherAuthorOrReviewer ?? 0)} of them were reviewed by other active people), ` +
+      `${summary.oneOtherAuthor ?? countRisk(data, "ONE OTHER AUTHOR")} would have one other recent author, ` +
       `${summary.orphanedFiles ?? "—"} current files would have no other recent editor, ` +
       `and ${summary.cutOff ?? simulation.cutOff?.length ?? "—"} people would lose their ` +
       "link to the main collaboration network.",
@@ -362,24 +371,26 @@ function renderDeparture(data, login) {
 
   const decisions = data.decision_share?.rows || [];
   const mainDecision = decisions[0];
-  const decisionMetric = mainDecision
-    ? `${mainDecision.theirPRs}/${mainDecision.totalPRs}`
-    : "—";
+  const decisionMetric = !mainDecision
+    ? "—"
+    : Number(mainDecision.explicitPRs || 0) === 0
+      ? "none"
+      : `${mainDecision.theirExplicitPRs}/${mainDecision.explicitPRs}`;
   const metrics = [
     ["Bus factor 1", "≥50%",
       "One person wrote at least half of the area’s qualifying commits; other people may still have contributed."],
-    ["ORPHANED", summary.orphaned ?? countRisk(data, "ORPHANED"),
-      "No other active contributor has at least 2 recent commits in the area."],
-    ["AT RISK", summary.atRisk ?? countRisk(data, "AT RISK"),
-      "One active contributor remains under the current activity threshold."],
+    ["NO OTHER AUTHOR", summary.noOtherAuthor ?? countRisk(data, "NO OTHER AUTHOR"),
+      "No other active author has at least 2 commits here in the last 12 months; reviewers are shown separately."],
+    ["ONE OTHER AUTHOR", summary.oneOtherAuthor ?? countRisk(data, "ONE OTHER AUTHOR"),
+      "One other active author has at least 2 commits here in the last 12 months."],
     ["Bridge rank", simulation.betweennessRank ?? "—",
       "This person’s position by how often they connect collaboration groups in shortest paths."],
     ["Cut off", summary.cutOff ?? simulation.cutOff?.length ?? 0,
       "People losing their only modeled shared-file link to the largest group."],
     ["Main group", `${simulation.mainGroupBefore ?? "—"} → ${simulation.mainGroupAfter ?? "—"}`,
       "Largest collaboration group before and after the departure scenario."],
-    ["Decision share", decisionMetric,
-      "Pull requests this person opened out of all pull requests linked to the leading decision."],
+    ["Explicit decision PRs", decisionMetric,
+      "Pull requests they opened out of explicitly linked pull requests for the leading decision; title guesses are separate below."],
   ];
   metrics[3][1] = summary.bridgeRank ?? simulation.betweennessRank ?? "—";
   const grid = el("div", "metric-grid");
@@ -396,20 +407,24 @@ function renderDeparture(data, login) {
 
   const impact = data.impact?.rows || [];
   const exposed = impact
-    .filter(row => ["ORPHANED", "AT RISK"].includes(row.risk))
-    .sort((left, right) => Number(right.theirCommits || 0) - Number(left.theirCommits || 0));
-  const orphaned = exposed.filter(row => row.risk === "ORPHANED");
-  const atRisk = exposed.filter(row => row.risk === "AT RISK");
-  disclosure(root, `Areas with no expert left · ${orphaned.length}`, orphaned.map(row => areaCard(row, login, name)));
-  disclosure(root, `Areas relying on one person · ${atRisk.length}`, atRisk.map(row => areaCard(row, login, name)));
+    .filter(row => ["NO OTHER AUTHOR", "ONE OTHER AUTHOR"].includes(row.risk))
+    .sort((left, right) => Number(left.reviewerCount || 0) - Number(right.reviewerCount || 0) ||
+      Number(right.theirCommits || 0) - Number(left.theirCommits || 0));
+  const orphaned = exposed.filter(row => row.risk === "NO OTHER AUTHOR");
+  const atRisk = exposed.filter(row => row.risk === "ONE OTHER AUTHOR");
+  disclosure(root, `No other recent author · ${orphaned.length}`, orphaned.map(row => areaCard(row, login, name)));
+  disclosure(root, `One other recent author · ${atRisk.length}`, atRisk.map(row => areaCard(row, login, name)));
 
-  disclosure(root, `Decisions they carry · ${decisions.length}`, decisions.map(row => {
+  disclosure(root, `Decisions they worked on · ${decisions.length}`, decisions.map(row => {
     const card = el("article", "detail-item");
     const authors = (row.otherOpeners || []).map(item => `${item.login} (${item.prs} PRs)`).join(", ");
+    const explicit = Number(row.explicitPRs || 0) === 0
+      ? "No explicitly linked PRs"
+      : `Explicitly linked PRs: they opened ${row.theirExplicitPRs} of ${row.explicitPRs}`;
     card.append(
       el("h4", "", row.decision),
-      el("p", "", `They opened ${row.theirPRs} of ${row.totalPRs} pull requests ` +
-        `linked to this decision (${Math.round((row.share || 0) * 100)}%).`),
+      el("p", "", `${explicit} · Title match only: ${row.theirTitleMatchPRs} of ${row.titleMatchPRs}`),
+      el("p", "muted", "Title matches are keyword guesses."),
       el("p", "muted", `Other PR authors: ${authors || "none listed"}`),
     );
     askAction(card, `Who else worked on the ${row.decision} decision?`);
@@ -527,7 +542,7 @@ function answer(result) {
 
 // Plain labels for the no-key starter tools; unknown fields get readable labels too.
 const toolColumns = {
-  successor: [["successor", "Successor"], ["sharedFiles", "Shared files"], ["theirCommits", "Commits here"]],
+  successor: [["successor", "Successor"], ["sharedFiles", "Shared files"], ["theirCommits", "Recent commits here"]],
   why_not: [["rejected", "Rejected decision"], ["chosenInstead", "Chosen instead"], ["evidence", "Evidence"], ["discussion", "Discussion"], ["whoToAsk", "Who to ask"]],
   declared_vs_actual: [["module", "Module"], ["declared", "Declared owners"], ["actualTop3", "Most active"], ["ownersNotInTop3", "Owners not in top 3"]],
 };

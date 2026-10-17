@@ -93,8 +93,9 @@ def github_updates(token: str, watermark: int | None, stamp: int) -> list[dict]:
 
 
 def _risk_snapshot(graph, since: int) -> dict[str, str]:
+    """Map each Component to its qualifying recent-author count: '0', '1' or '2+'."""
     result = graph.ro_query(load_query("15b_refresh_component_risk"), {"since": since})
-    return {row[0]: row[2] for row in result.result_set}
+    return {row[0]: "2+" if row[1] >= 2 else str(row[1]) for row in result.result_set}
 
 
 def _active_people(graph) -> set[str]:
@@ -137,7 +138,7 @@ def _team_observations(graph, team: TeamMemory, before_risk: dict, after_risk: d
     for component in sorted(before_risk.keys() | after_risk.keys()):
         old, new = before_risk.get(component), after_risk.get(component)
         if old != new and new:
-            observations.append((f"Component {component} risk changed from {old or 'unknown'} to {new}.", "risk_change", f"component:{component}"))
+            observations.append((f"Component {component} recent authors changed from {old or 'unknown'} to {new}.", "risk_change", f"component:{component}"))
     for login in sorted(before_active - after_active):
         observations.append((f"{login} is no longer Active in the current activity window.", "person_inactive", f"person:{login}"))
     for item in changed_decisions:
@@ -225,7 +226,7 @@ def run_refresh(*, graph=None, repo: Path | None = None, no_pull: bool = False, 
     print(f"  New PRs: {len(prs)}" + (" (none)" if not prs else ""))
     print("  Became Active: " + (", ".join(summary["becameActive"]) or "none"))
     print("  Became inactive: " + (", ".join(summary["becameInactive"]) or "none"))
-    print("  Component risk changes: " + (", ".join(f"{k}: {old or 'unknown'} -> {new}" for k, old, new in risk_changes) or "none"))
+    print("  Component recent-author changes: " +(", ".join(f"{k}: {old or 'unknown'} -> {new}" for k, old, new in risk_changes) or "none"))
     return summary
 
 
