@@ -35,6 +35,8 @@ TOOL_LABELS = {
     "declared_vs_actual": "Compared declared owners with recent contributors",
     "find_entity": "Found matching graph entities",
     "remember_correction": "Saved a correction to memory",
+    "handover_plan": "Drafted a handover plan from graph evidence",
+    "mark_unavailable": "Saved an availability note to team memory",
 }
 GRAPH_KEY_MAP = {
     "05_bus_factor": {"modules": "module", "people": "topExpert"},
@@ -240,6 +242,8 @@ LLM_TOOL_PARAMS = {
     "declared_vs_actual": [],
     "find_entity": ["text"],
     "remember_correction": ["key", "text"],
+    "handover_plan": ["login", "component"],
+    "mark_unavailable": ["login", "reason"],
 }
 LLM_TOOL_REQUIRED = {
     "departure_impact": ["login"],
@@ -252,6 +256,8 @@ LLM_TOOL_REQUIRED = {
     "decision_trace": ["path"],
     "why_not": ["slug"],
     "remember_correction": ["key", "text"],
+    "handover_plan": ["login", "component"],
+    "mark_unavailable": ["login", "reason"],
 }
 
 def main() -> None:

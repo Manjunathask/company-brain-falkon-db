@@ -351,6 +351,10 @@ function areaCard(row, login, name) {
   card.append(el("p", "muted", reviewText));
 
   const actions = el("div", "detail-actions");
+  const draft = el("button", "", "Draft handover");
+  draft.type = "button";
+  draft.onclick = () => openHandover(card, login, name, row.component);
+  actions.append(draft);
   const successors = el("button", "secondary", "Show successors");
   successors.type = "button";
   successors.onclick = async () => {
@@ -376,6 +380,209 @@ function areaCard(row, login, name) {
   askAction(actions, `Who could take over ${row.component} if ${name} left?`);
   card.append(actions);
   return card;
+}
+
+// Handover packet for one area: a sourced successor, PRs to read, decisions to keep and questions to ask.
+async function openHandover(card, login, name, component) {
+  document.querySelectorAll(".handover-panel").forEach(panel => panel.remove());
+  const panel = el("section", "handover-panel");
+  panel.setAttribute("aria-live", "polite");
+  panel.append(el("p", "muted", `Drafting the handover for ${component}…`));
+  card.after(panel);
+  panel.scrollIntoView({ block: "start" });
+  try {
+    const packet = await api(`/api/handover/${encodeURIComponent(login)}?component=${encodeURIComponent(component)}`);
+    renderHandover(panel, packet, () => openHandover(card, login, name, component));
+    evidence("leave", packet.graph, [login]);
+  } catch (error) {
+    panel.replaceChildren(el("p", "muted", `Handover unavailable: ${error.message}`));
+  }
+}
+
+async function noteAvailability(login, status, reason) {
+  return api("/api/availability", {
+    method: "POST",
+    body: JSON.stringify({ login, status, reason, visitor: visitorId }),
+  });
+}
+
+function unavailableForm(login, redraw) {
+  const box = el("span", "unavailable-box");
+  const open = el("button", "secondary small", "Mark unavailable");
+  open.type = "button";
+  open.onclick = () => {
+    const form = el("form", "unavailable-form");
+    const input = el("input");
+    input.placeholder = "Reason, e.g. on leave until January";
+    input.setAttribute("aria-label", `Why ${login} is unavailable`);
+    const save = el("button", "small", "Save note");
+    form.append(input, save);
+    form.onsubmit = async event => {
+      event.preventDefault();
+      save.disabled = true;
+      await noteAvailability(login, "unavailable", input.value || "no reason given");
+      redraw();
+    };
+    box.replaceChildren(form);
+    input.focus();
+  };
+  box.append(open);
+  return box;
+}
+
+function handoverSection(title) {
+  const section = el("div", "handover-section");
+  section.append(el("h4", "", title));
+  return section;
+}
+
+function changedLine(changed) {
+  const text = changed.same
+    ? `Same suggestion as the packet saved on ${changed.previousDate}.`
+    : `The packet saved on ${changed.previousDate} suggested ${changed.previousCandidate}; ` +
+      `now ${changed.candidate || "nobody"}.`;
+  return el("p", "handover-changed",
+    `What changed: ${text}${changed.reasons.length ? ` Why: ${changed.reasons.join("; ")}.` : ""}`);
+}
+
+function successorSection(packet, redraw) {
+  const section = handoverSection("Suggested successor");
+  if (packet.successor) {
+    const why = el("p", "");
+    why.append(el("strong", "", packet.successor.login), `: ${packet.successor.why}`);
+    section.append(why);
+    const table = document.createElement("table");
+    table.className = "tool-table";
+    const head = document.createElement("tr");
+    ["Candidate", `Reviewed ${packet.login}'s PRs here`, "Shared files", "Own commits here", "PRs reviewed here",
+      "Shared decisions", ""].forEach(label => head.append(el("th", "", label)));
+    table.append(head);
+    packet.candidates.forEach(row => {
+      const tr = document.createElement("tr");
+      [row.login, `${row.reviewedTheirPRs} of ${row.theirPRCount}`, `${row.sharedFiles} of ${row.outOf}`,
+        row.areaCommits, row.areaReviews, cellText(row.sharedDecisions)]
+        .forEach(value => tr.append(el("td", "", String(value))));
+      const action = el("td");
+      action.append(unavailableForm(row.login, redraw));
+      tr.append(action);
+      table.append(tr);
+    });
+    section.append(table);
+    if (packet.successor.toLearn?.length) {
+      section.append(el("p", "muted",
+        `Not touched by ${packet.successor.login} yet: ${packet.successor.toLearn.join(", ")}`));
+    }
+  } else {
+    section.append(el("p", "muted", `No active author or reviewer of this area was found besides ${packet.name}.`));
+  }
+  packet.skipped.forEach(item => {
+    const line = el("p", "handover-skipped",
+      `Skipped ${item.login}: marked unavailable${item.reason ? ` (${item.reason})` : ""} · ${item.label}, ` +
+      `${item.source || "unknown source"}. `);
+    const undo = el("button", "secondary small", "Mark available");
+    undo.type = "button";
+    undo.onclick = async () => {
+      undo.disabled = true;
+      await noteAvailability(item.login, "available", "");
+      redraw();
+    };
+    line.append(undo);
+    section.append(line);
+  });
+  return section;
+}
+
+function readingSection(packet) {
+  const section = handoverSection("Read these first");
+  const list = el("ul", "handover-list");
+  packet.read.forEach(pr => {
+    const item = el("li");
+    item.append(externalLink(`${GITHUB}/pull/${pr.number}`, `#${pr.number} ${pr.title}`),
+      el("small", "", ` · ${pr.filesHere} file${pr.filesHere === 1 ? "" : "s"} here` +
+        `${pr.reviewers?.length ? ` · reviewed by ${pr.reviewers.join(", ")}` : ""}`));
+    (pr.decisions || []).forEach(decision => item.append(el("span",
+      `decision-chip ${decision.confidence === "high" ? "explicit" : "title-match"}`,
+      `${decision.title} · ${decision.confidence === "high" ? "explicit" : "title match"}`)));
+    list.append(item);
+  });
+  section.append(packet.read.length ? list : el("p", "muted", `No recent PRs by ${packet.name} in this area.`));
+  return section;
+}
+
+function decisionsSection(packet) {
+  const section = handoverSection("Decisions to preserve");
+  packet.preserve.forEach(decision => {
+    const card = el("article", "detail-item");
+    card.append(el("h4", "", `${decision.title} (${decision.status || "unknown"})`),
+      el("p", "", `${decision.explicitPRs} explicitly linked PRs here · ${decision.titleMatchPRs} title matches ` +
+        "(keyword guesses)" + (decision.supersession ? ` · ${decision.supersession}` : "")),
+      sourceLinks(decision),
+      el("p", "muted", decision.otherActiveCount
+        ? `Other active participants: ${decision.otherActive.join(", ")}`
+        : `No other active participant${decision.leavingParticipated ? ` besides ${packet.name}` : ""}.`));
+    if (decision.rationale) {
+      card.append(el("p", "muted", `Stated reason, quoted from ${decision.rationaleSource}:`),
+        el("blockquote", "rationale", decision.rationale));
+    }
+    section.append(card);
+  });
+  if (!packet.preserve.length) section.append(el("p", "muted", "No RFC decision is linked to this area's PRs."));
+  return section;
+}
+
+function questionsSection(packet) {
+  const section = handoverSection(`Questions for ${packet.name}`);
+  const list = el("ol", "handover-list");
+  packet.ask.forEach(item => {
+    const li = el("li", "", item.text);
+    li.title = item.from;
+    list.append(li);
+  });
+  section.append(packet.ask.length ? list : el("p", "muted", "No questions generated."));
+  return section;
+}
+
+function handoverActions(packet) {
+  const actions = el("div", "detail-actions");
+  const status = el("span", "muted handover-status");
+  const save = el("button", "", "Save to team memory");
+  save.type = "button";
+  save.onclick = async () => {
+    save.disabled = true;
+    try {
+      await api(`/api/handover/${encodeURIComponent(packet.login)}/save`, {
+        method: "POST",
+        body: JSON.stringify({ component: packet.component, candidate: packet.successor?.login || null,
+          visitor: visitorId }),
+      });
+      status.textContent = "Saved to team memory. Anyone drafting this handover will see what changed since.";
+    } catch (error) {
+      save.disabled = false;
+      status.textContent = `Not saved: ${error.message}`;
+    }
+  };
+  const copy = el("button", "secondary", "Copy as Markdown");
+  copy.type = "button";
+  copy.onclick = async () => {
+    try {
+      await navigator.clipboard.writeText(packet.markdown);
+      status.textContent = "Copied. Paste it into a GitHub issue.";
+    } catch (_) {
+      status.textContent = "Copy unavailable here; open the Markdown below.";
+    }
+  };
+  actions.append(save, copy, status);
+  return actions;
+}
+
+function renderHandover(panel, packet, redraw) {
+  panel.replaceChildren(el("h3", "", `Handover: ${packet.component}`),
+    el("p", "muted", `If ${packet.name} (@${packet.login}) leaves · drafted ${packet.draftedOn}`));
+  if (packet.changed) panel.append(changedLine(packet.changed));
+  const markdown = document.createElement("details");
+  markdown.append(el("summary", "", "Markdown"), el("pre", "handover-markdown", packet.markdown));
+  panel.append(successorSection(packet, redraw), readingSection(packet), decisionsSection(packet),
+    questionsSection(packet), el("p", "muted handover-caveat", packet.caveat), handoverActions(packet), markdown);
 }
 
 // Render the departure summary first, then put the highest-commit areas first in each section.
@@ -579,8 +786,11 @@ function answer(result) {
 // Plain labels for the no-key starter tools; unknown fields get readable labels too.
 const toolColumns = {
   successor: [["successor", "Successor"], ["sharedFiles", "Shared files"], ["theirCommits", "Recent commits here"]],
-  why_not: [["rejected", "Rejected decision"], ["chosenInstead", "Chosen instead"], ["rationale", "Stated reason (quoted)"],
-    ["rationaleSource", "Reason source"], ["evidence", "Evidence"], ["discussion", "Discussion"], ["whoToAsk", "Who to ask"]],
+  why_not: [["rejected", "Rejected decision"], ["chosenInstead", "Chosen instead"],
+    ["rationale", "Stated reason (quoted)"], ["rationaleSource", "Reason source"], ["evidence", "Evidence"],
+    ["discussion", "Discussion"], ["whoToAsk", "Who to ask"]],
+  handover_plan: [["component", "Area"], ["successor", "Suggested successor"], ["read", "Read these first"],
+    ["preserve", "Decisions to preserve"], ["ask", "Questions"], ["skipped", "Skipped"]],
   declared_vs_actual: [["module", "Module"], ["declared", "Declared owners"], ["actualTop3", "Most active"], ["ownersNotInTop3", "Owners not in top 3"]],
 };
 

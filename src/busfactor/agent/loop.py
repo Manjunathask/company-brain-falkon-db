@@ -8,6 +8,7 @@ import logging
 import time
 import uuid
 
+from busfactor import handover
 from busfactor import tools as graph_tools
 
 LOGGER = logging.getLogger(__name__)
@@ -25,7 +26,7 @@ MAX_STRING_CHARS = 2000
 TOOL_ORDER = ["bus_factor", "bus_factor_component", "departure_impact", "departure_files",
               "orphaned_decisions", "decision_share", "successor", "simulate_departure", "bridges",
               "groups", "decision_trace", "why_not", "drift", "declared_vs_actual", "find_entity",
-              "remember_correction"]
+              "remember_correction", "handover_plan", "mark_unavailable"]
 PARAMS = {
     "bus_factor": {"since":"integer", "minCommits":"integer", "minTotal":"integer"},
     "bus_factor_component": {"since":"integer", "minCommits":"integer", "minTotal":"integer", "includeTestResources":"boolean"},
@@ -40,17 +41,30 @@ PARAMS = {
     "declared_vs_actual": {"since":"integer", "minCommits":"integer"},
     "find_entity": {"text":"string", "limit":"integer"},
     "remember_correction": {"key":"string", "text":"string", "source":"string"},
+    "handover_plan": {"login":"string", "component":"string"},
+    "mark_unavailable": {"login":"string", "reason":"string"},
+}
+# Tools that are not in the read-only graph registry describe themselves here.
+DESCRIPTIONS = {
+    "remember_correction": "Store a user's correction in their memory graph; this does not modify delta.",
+    "handover_plan": "Draft a handover plan for one code area if a person leaves: a suggested successor with separate "
+                     "evidence (reviews of their PRs, shared files, own commits, area reviews, shared decisions), PRs to "
+                     "read, decisions to preserve with sources, and questions for the leaving person. People marked "
+                     "unavailable in team memory are skipped.",
+    "mark_unavailable": "Record in shared team memory that a person is unavailable for handover work, with the "
+                        "reason the user gave. It is an unverified note and never changes delta.",
 }
 REQUIRED = {"departure_impact":["login"], "departure_files":["login"], "orphaned_decisions":["login"],
             "decision_share":["login"], "successor":["login","component"], "simulate_departure":["login"],
-            "decision_trace":["path"], "why_not":["slug"], "remember_correction":["key","text"]}
+            "decision_trace":["path"], "why_not":["slug"], "remember_correction":["key","text"],
+            "handover_plan":["login","component"], "mark_unavailable":["login","reason"]}
 
 
 def tool_specs() -> list[dict]:
     specs = []
     for name in TOOL_ORDER:
         function = graph_tools.TOOLS.get(name)
-        description = function.__doc__ if function else "Store a user's correction in their memory graph; this does not modify delta."
+        description = function.__doc__ if function else DESCRIPTIONS[name]
         props = {key: {"type": PARAMS[name][key]} for key in graph_tools.LLM_TOOL_PARAMS[name]}
         specs.append({"name": name, "description": description,
                       "input_schema": {"type":"object", "properties":props,
@@ -201,6 +215,10 @@ def ask(question: str, user: str, session_id: str | None = None, llm=None, *, me
                     if error: raise ValueError(error)
                     if name == "remember_correction":
                         result = memory.store_correction(**params)
+                    elif name == "mark_unavailable":
+                        result = memory.mark_unavailable(**params)
+                    elif name == "handover_plan":
+                        result = handover.plan_tool(**params)
                     else:
                         result = graph_tools.TOOLS[name](**params)
                     elapsed = round((time.perf_counter() - start) * 1000, 2)

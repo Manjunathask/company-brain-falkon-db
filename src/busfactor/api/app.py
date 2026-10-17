@@ -13,11 +13,12 @@ from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from busfactor import handover
 from busfactor import tools as graph_tools
 from busfactor.agent.loop import _validate, ask, tool_specs
 from busfactor.agent.memory import Memory, mark_visitor_deleted
 from busfactor.db import get_client, get_graph, load_query
-from busfactor.team_memory import TeamMemory
+from busfactor.team_memory import TEAM_GRAPH, TeamMemory
 
 
 def configure_busfactor_logging() -> logging.Logger:
@@ -44,6 +45,26 @@ class AskRequest(BaseModel):
 
 class ToolRequest(BaseModel):
     params: dict[str, Any] = Field(default_factory=dict)
+
+
+class HandoverSaveRequest(BaseModel):
+    component: str = Field(min_length=1)
+    candidate: str | None = None
+    visitor: str | None = None
+
+
+class AvailabilityRequest(BaseModel):
+    login: str = Field(min_length=1)
+    status: str = Field(pattern="^(unavailable|available)$")
+    reason: str = ""
+    visitor: str | None = None
+
+
+def _team_writer(visitor: str | None) -> tuple[str, str]:
+    """Agent name and source for a team-memory note; chat:<visitor> lets Start over remove it."""
+    if visitor and re.fullmatch(r"v_[0-9a-f]{32}", visitor):
+        return f"chat:{visitor}", f"visitor {visitor[2:10]}"
+    return "handover-planner", "web"
 
 
 app = FastAPI(title="Bus Factor API", version="1.0")
@@ -336,6 +357,39 @@ def departure(login: str):
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
+@app.get("/api/handover/{login}")
+def handover_packet(login: str, component: str):
+    person = _read_rows("17c_active_person", {"login": login})
+    if not person:
+        raise HTTPException(status_code=404, detail=f"No active person with login '{login}' in the graph.")
+    if not _read_rows("17d_component_exists", {"component": component}):
+        raise HTTPException(status_code=404, detail=f"No code area named '{component}' in the graph.")
+    try:
+        return handover.build_packet(login, component, name=person[0].get("name") or login)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.post("/api/handover/{login}/save")
+def save_handover(login: str, body: HandoverSaveRequest):
+    agent, source = _team_writer(body.visitor)
+    try:
+        return handover.save_packet(login, body.component, body.candidate, agent=agent, source=source)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.post("/api/availability")
+def availability(body: AvailabilityRequest):
+    agent, source = _team_writer(body.visitor)
+    try:
+        return handover.mark_availability(body.login, body.status, body.reason, agent=agent, source=source)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
 def _read_rows(query_name: str, params: dict, graph=None) -> list[dict]:
     graph = graph or get_graph()
     result = graph.ro_query(load_query(query_name), params)
@@ -412,9 +466,10 @@ def delete_memory(user: str):
             client.connection.execute_command("GRAPH.DELETE", f"mem_{user}")
         except Exception as exc:
             message = str(exc).lower()
-            if not any(marker in message for marker in ("not found", "does not exist", "no such graph")):
+            # A visitor who never asked a question has no memory graph; FalkorDB says "empty key".
+            if not any(marker in message for marker in ("not found", "does not exist", "no such graph", "empty key")):
                 raise
-        result = client.select_graph("mem_team").query(load_query("17b_team_delete_visitor_claims"),
+        result = client.select_graph(TEAM_GRAPH).query(load_query("17b_team_delete_visitor_claims"),
                                                           {"agent": f"chat:{user}"})
         removed = int(result.result_set[0][0]) if result.result_set else 0
         return {"deleted": True, "teamClaimsRemoved": removed}

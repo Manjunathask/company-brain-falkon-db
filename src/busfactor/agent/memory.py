@@ -147,6 +147,13 @@ class Memory:
         return {"tool": "remember_correction", "params": {"key": key, "text": text, "source": source},
                 "cypher": load_query("14b_mem_store_correction"), "rows": [row], "graph": {"nodes": [], "edges": []}}
 
+    def mark_unavailable(self, login: str, reason: str) -> dict:
+        from busfactor.handover import mark_availability
+        row = mark_availability(login, "unavailable", reason, agent=f"chat:{self.name[4:]}", source="chat",
+                                team=self.team_memory)
+        return {"tool": "mark_unavailable", "params": {"login": login, "reason": reason},
+                "cypher": load_query("16e_team_write_availability"), "rows": [row], "graph": {"nodes": [], "edges": []}}
+
     def snapshot(self) -> dict:
         return {"episodes": self._run("14c_mem_recall", {"keys": [], "limit": 1000})}
 

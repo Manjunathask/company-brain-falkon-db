@@ -29,8 +29,10 @@ def test_claude_tool_schemas_have_bounded_optional_parameters_and_python_targets
         assert schema["additionalProperties"] is False
         required = schema["required"]
         assert set(required) <= set(schema["properties"])
-        function = (Memory.store_correction if spec["name"] == "remember_correction"
-                    else graph_tools.TOOLS[spec["name"]])
+        from busfactor import handover
+        special = {"remember_correction": Memory.store_correction, "mark_unavailable": Memory.mark_unavailable,
+                   "handover_plan": handover.plan_tool}
+        function = special.get(spec["name"]) or graph_tools.TOOLS[spec["name"]]
         python_parameters = inspect.signature(function).parameters
         assert set(required) <= set(python_parameters)
         optional_counts[spec["name"]] = len(set(schema["properties"]) - set(required))

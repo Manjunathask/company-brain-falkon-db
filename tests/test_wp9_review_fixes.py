@@ -8,6 +8,9 @@ def test_wp9_query_numbering_has_one_feature_per_number_group():
         "15_refresh_watermarks.cypher", "15a_refresh_head_files.cypher", "15b_refresh_component_risk.cypher",
         "16_team_write_observation.cypher", "16b_team_recall.cypher",
         "16c_team_record_refresh.cypher", "16d_team_list.cypher",
+        # WP14 handover memory belongs to the same team-memory group.
+        "16e_team_write_availability.cypher", "16f_team_availability.cypher",
+        "16g_team_write_handover.cypher", "16h_team_last_handover.cypher",
     }
     found = {path.name for path in (ROOT / "queries").glob("*.cypher") if path.name.startswith(("15", "16"))}
     assert found == expected

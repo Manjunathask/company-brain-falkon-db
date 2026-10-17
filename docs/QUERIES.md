@@ -1,5 +1,93 @@
 # Cypher query guide
 
+## `18_handover_candidates.cypher`
+
+**What it answers:** Who could take over one code area from a leaving person, with each kind of evidence in its own column.
+
+**Parameters:** $login, $component, $since (epoch ms), $exclude (logins marked unavailable in team memory), $limit.
+
+Collect the leaving person's in-window, non-bulk commits on current files in the area, their files and their PRs. The candidate pool is recent Active authors of the area plus recent reviewers of PRs that touched it, so an area with no other author still gets candidates from reviews. Each column is aggregated in its own `WITH` stage with `count(DISTINCT ...)`: `reviewedTheirPRs` (the leaving person's PRs here that the candidate reviewed), `sharedFiles`/`outOf`, `areaCommits`, `areaReviews`, `sharedDecisions` (high-confidence participation in decisions linked to the area) and `toLearn` (files only the leaving person edited here that the candidate never authored). The order is a plain sort, not a weighted score: reviews of this person's PRs first, because that reviewer has already seen these changes. People in `$exclude` come back last with `skipped = true`, so the packet can say why they were left out.
+
+## `18b_handover_reading.cypher`
+
+**What it answers:** Which of the leaving person's recent PRs in one area a successor should read first.
+
+**Parameters:** $login, $component, $since (epoch ms), $limit.
+
+Group the person's in-window, non-bulk commits on current area files by PR, then add decision links (with confidence) and reviewers in separate stages. PRs with an explicit decision link come first, then the most area files touched, then the most recently merged.
+
+## `18c_handover_decisions.cypher`
+
+**What it answers:** Which RFC decisions a successor must preserve in one area, with their sources and who else took part.
+
+**Parameters:** $login, $component.
+
+Find decisions linked to the area through Commit -PART_OF-> PR -IMPLEMENTS-> Decision over all loaded history, or through an RFC document filed in the area. Count explicit and title-match PRs per decision, then add the tracking issue and RFC path (for links), whether the leaving person took part, other active high-confidence participants, and the SUPERSEDED_BY reason from either end of the edge. At most five, explicit links first.
+
+## `18e_handover_activity_since.cypher`
+
+**What it answers:** How much work landed in one area after a saved handover packet.
+
+**Parameters:** $component, $since (the saved packet's time, epoch ms).
+
+Counts distinct non-bulk commits on current area files after `$since` and the PRs they belong to. The packet uses it to explain why a new suggestion differs from the saved one.
+
+## `18_handover_graph.cypher`
+
+**What it answers:** The paths behind one handover packet.
+
+**Parameters:** $login, $component, $prs (reading-list PR numbers), $candidates (listed candidate logins).
+
+A union of short paths with no Commit or File nodes: the leaving person's reading PRs, their decision links, candidate reviews of those PRs, and KNOWS edges to the area. It is drawn beside the packet.
+
+## `16e_team_write_availability.cypher`
+
+**What it answers:** Record in shared team memory that a person is or is not available for handover work.
+
+**Parameters:** $id, $agent, $key (person:<login>), $status, $reason, $text, $ts, $source.
+
+One Observation of kind `availability` per note; notes are never edited and the newest one per person wins. The writer is `chat:<visitor>` for the web page and the chat agent, so "Start over" removes that visitor's notes with their other claims. These are unverified notes and never change the delta graph.
+
+## `16f_team_availability.cypher`
+
+**What it answers:** The latest availability note for every person who has one.
+
+**Parameters:** none.
+
+Orders each person's availability observations newest first and keeps the first. The packet builder treats status `unavailable` as `$exclude` for `18_handover_candidates`, joining team memory to delta by login in Python because Cypher cannot cross graphs.
+
+## `16g_team_write_handover.cypher`
+
+**What it answers:** Save a drafted handover packet to shared team memory.
+
+**Parameters:** $id, $agent, $key (component:<name>), $person, $candidate, $text, $ts, $source.
+
+One Observation of kind `handover` about the component, recording who is leaving and who was suggested. Other visitors and later sessions read it back with 16h.
+
+## `16h_team_last_handover.cypher`
+
+**What it answers:** The most recently saved handover packet for one leaving person and one component.
+
+**Parameters:** $key (component:<name>), $person.
+
+One row, newest first. The packet compares its own suggestion with this one and says what changed: a candidate marked unavailable, or new activity in the area (18e).
+
+## `17c_active_person.cypher`
+
+**What it answers:** Whether a login is an active, non-bot person, and their display name.
+
+**Parameters:** $login.
+
+Used by the handover endpoint to return 404 for unknown people and to show the leaving person's name.
+
+## `17d_component_exists.cypher`
+
+**What it answers:** Whether a code area with this exact name exists.
+
+**Parameters:** $component.
+
+Used by the handover endpoint to return 404 for an unknown area.
+
 ## `17_people_search.cypher`
 
 **What it answers:** search Active non-bot maintainers by recent authored commit activity.
