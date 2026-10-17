@@ -1,4 +1,6 @@
 """WP11a response contracts against isolated and live FalkorDB graphs."""
+import logging
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -76,10 +78,30 @@ def test_followups_skip_unsupported_rows_deduplicate_and_cap():
         {"tool": "departure_impact", "params": {"login": "alice"}, "rows": [
             {"component": "c2", "risk": "ORPHANED"}, {"component": "c3", "risk": "ORPHANED"}]}]
     result = build_followups(calls)
-    assert len(result) == 3
+    assert len(result) == 2
     assert all("not-risky" not in item for item in result)
     assert build_followups([{"tool": "why_not", "params": {}, "rows": [
         {"chosenInstead": "No drift", "changesSinceDecision": 0}]}]) == []
+
+
+def test_followups_round_robin_limit_per_tool_and_skip_asked_question():
+    calls = [
+        {"tool": "departure_impact", "params": {"login": "murali-db"}, "rows": [
+            {"component": "spark", "risk": "AT RISK", "login": "murali-db", "name": "Murali Ramanujam"},
+            {"component": "kernel", "risk": "ORPHANED", "login": "murali-db", "name": "Murali Ramanujam"},
+            {"component": "flink", "risk": "ORPHANED", "login": "murali-db", "name": "Murali Ramanujam"},
+        ]},
+        {"tool": "decision_share", "params": {}, "rows": [
+            {"decision": "Catalog Tables"}, {"decision": "Protocol V3"},
+        ]},
+    ]
+    result = build_followups(calls, question="Who could take over spark if Murali Ramanujam (@murali-db) left?")
+    assert result == [
+        "Who else worked on Catalog Tables?",
+        "Who could take over kernel if Murali Ramanujam (@murali-db) left?",
+        "Who else worked on Protocol V3?",
+        "Who could take over flink if Murali Ramanujam (@murali-db) left?",
+    ]
 
 
 def test_unknown_person_is_404_before_simulation(client, monkeypatch):
@@ -141,6 +163,17 @@ def test_tool_labels_present(client):
     tools = client.get("/api/tools").json()["tools"]
     assert all(item.get("label") for item in tools)
     assert all(graph_tools.TOOL_LABELS[item["name"]] == item["label"] for item in tools)
+
+
+def test_busfactor_stream_logging_is_single_and_non_propagating():
+    logger = api.configure_busfactor_logging()
+    api.configure_busfactor_logging()
+    tagged = [handler for handler in logger.handlers
+              if getattr(handler, "_busfactor_api_handler", False)]
+    assert len(tagged) == 1
+    assert isinstance(tagged[0], logging.StreamHandler)
+    assert tagged[0].formatter._fmt == "%(levelname)s %(name)s %(message)s"
+    assert logger.propagate is False
 
 
 @pytest.mark.integration

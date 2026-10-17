@@ -6,6 +6,12 @@ from busfactor.agent.llm import ScriptedLLM, Step
 from busfactor.agent.loop import ask, _first_user_message, tool_specs
 from busfactor.agent.memory import Memory
 from busfactor.agent.memory import entity_keys
+from busfactor.agent.prompt import SYSTEM_PROMPT
+
+
+def test_system_prompt_prevents_pronoun_inference():
+    assert "never infer pronouns from a name" in SYSTEM_PROMPT
+    assert "use ‘they’ if a pronoun is needed" in SYSTEM_PROMPT
 
 
 class FakeMemory:

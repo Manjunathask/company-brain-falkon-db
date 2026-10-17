@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 import re
+import logging
 from datetime import date
 import json
 from pathlib import Path
@@ -17,6 +18,22 @@ from busfactor.agent.loop import _validate, ask, tool_specs
 from busfactor.agent.memory import Memory, mark_visitor_deleted
 from busfactor.db import get_client, get_graph, load_query
 from busfactor.team_memory import TeamMemory
+
+
+def configure_busfactor_logging() -> logging.Logger:
+    """Send busfactor INFO records to the server stream exactly once."""
+    logger = logging.getLogger("busfactor")
+    logger.setLevel(logging.INFO)
+    logger.propagate = False
+    if not any(getattr(handler, "_busfactor_api_handler", False) for handler in logger.handlers):
+        handler = logging.StreamHandler()
+        handler.setFormatter(logging.Formatter("%(levelname)s %(name)s %(message)s"))
+        handler._busfactor_api_handler = True
+        logger.addHandler(handler)
+    return logger
+
+
+configure_busfactor_logging()
 
 
 class AskRequest(BaseModel):
@@ -110,14 +127,14 @@ def _focused_departure_graph(login: str, results: dict, components: list[dict]) 
     cutoff_logins = set(simulation_row.get("cutOff") or [])
     for node in nodes_by_id.values():
         if node.get("label") == "Person" and login_of(node) in cutoff_logins:
-            selected[node["id"]] = node
+            selected[node["id"]] = {**node, "focusRole": "cut-off"}
 
     decision_titles = {row.get("decision") for row in results.get("decision_share", {}).get("rows", [])}
     opener_logins = {opener.get("login") for row in results.get("decision_share", {}).get("rows", [])
                      for opener in row.get("otherOpeners", [])}
     for node in nodes_by_id.values():
         if node.get("label") == "Decision" and node.get("props", {}).get("title") in decision_titles:
-            selected[node["id"]] = node
+            selected[node["id"]] = {**node, "focusRole": "departure-decision"}
         elif node.get("label") == "Person" and login_of(node) in opener_logins:
             selected[node["id"]] = node
 

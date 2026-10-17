@@ -4,10 +4,14 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from concurrent.futures import ThreadPoolExecutor
 import json
+import logging
 import time
 import uuid
 
 from busfactor import tools as graph_tools
+
+LOGGER = logging.getLogger(__name__)
+LOGGER.setLevel(logging.INFO)
 from busfactor.db import get_graph
 from .llm import Step
 from .memory import Memory, entity_keys, record_episode_if_live
@@ -151,6 +155,8 @@ def _first_user_message(question: str, today: str, recalled: list[dict], team_re
 
 def ask(question: str, user: str, session_id: str | None = None, llm=None, *, memory: Memory | None = None,
         graph=None, max_rounds: int = 8) -> dict:
+    request_started = time.perf_counter()
+    visitor = str(user)[-8:]
     if llm is None:
         from .llm import create_llm
         llm = create_llm()
@@ -159,6 +165,7 @@ def ask(question: str, user: str, session_id: str | None = None, llm=None, *, me
     session_id = session_id or str(uuid.uuid4())
     now = datetime.now(timezone.utc)
     from busfactor.team_memory import TeamMemory
+    phase_started = time.perf_counter()
     question_keys = []
     try:
         question_keys = entity_keys(graph_tools.find_entity(question).get("graph", {}))
@@ -166,6 +173,8 @@ def ask(question: str, user: str, session_id: str | None = None, llm=None, *, me
         pass
     team_recall = TeamMemory().recall(question_keys)
     recalled = memory.recall_for_prompt(question, question_keys, delta_graph=graph)
+    LOGGER.info("ask_timing visitor=%s phase=memory_recall ms=%.2f", visitor,
+                (time.perf_counter() - phase_started) * 1000)
     messages = [{"role":"user", "content":_first_user_message(question, now.date().isoformat(), recalled,
                                                                   team_recall=team_recall)}]
     evidence = {"nodes": [], "edges": []}
@@ -175,11 +184,15 @@ def ask(question: str, user: str, session_id: str | None = None, llm=None, *, me
     rounds = 0
     while True:
         available = tool_specs() if rounds < max_rounds else []
+        round_started = time.perf_counter()
         step = llm.step(SYSTEM_PROMPT, messages, available)
+        LOGGER.info("ask_timing visitor=%s phase=llm_round round=%d ms=%.2f", visitor,
+                    rounds + 1, (time.perf_counter() - round_started) * 1000)
         usages.append(step.usage or {})
         messages.append(llm.assistant_message(step))
         if step.stop == "tool_use" and rounds < max_rounds:
             rounds += 1
+            batch_started = time.perf_counter()
             def execute_call(call):
                 name, call_id, raw = call.get("name", ""), call.get("id", str(uuid.uuid4())), call.get("input", {})
                 params, error = _validate(name, raw)
@@ -197,6 +210,8 @@ def ask(question: str, user: str, session_id: str | None = None, llm=None, *, me
                     return {"id":call_id,"name":name or "unknown","params":raw,"error":str(exc),"elapsed":elapsed}
             with ThreadPoolExecutor(max_workers=6) as pool:
                 completed = list(pool.map(execute_call, step.tool_calls))
+            LOGGER.info("ask_timing visitor=%s phase=tool_batch round=%d calls=%d ms=%.2f",
+                        visitor, rounds, len(completed), (time.perf_counter() - batch_started) * 1000)
             results = []
             for item in completed:
                 if "error" in item:
@@ -223,7 +238,10 @@ def ask(question: str, user: str, session_id: str | None = None, llm=None, *, me
             if rounds >= max_rounds:
                 stop_reason = "round_limit"
                 messages.append({"role":"user", "content":"Tool round limit reached. Give the best evidence-based summary now."})
+                final_started = time.perf_counter()
                 final = llm.step(SYSTEM_PROMPT, messages, [])
+                LOGGER.info("ask_timing visitor=%s phase=llm_round round=%d final=true ms=%.2f",
+                            visitor, rounds + 1, (time.perf_counter() - final_started) * 1000)
                 usages.append(final.usage or {})
                 messages.append(llm.assistant_message(final))
                 answer = final.text
@@ -233,7 +251,10 @@ def ask(question: str, user: str, session_id: str | None = None, llm=None, *, me
         if step.stop == "tool_use":
             stop_reason = "round_limit"
             messages.append({"role":"user", "content":"Tool round limit reached. Give the best evidence-based summary now."})
+            final_started = time.perf_counter()
             final = llm.step(SYSTEM_PROMPT, messages, [])
+            LOGGER.info("ask_timing visitor=%s phase=llm_round round=%d final=true ms=%.2f",
+                        visitor, rounds + 1, (time.perf_counter() - final_started) * 1000)
             usages.append(final.usage or {})
             messages.append(llm.assistant_message(final))
             answer = final.text
@@ -248,8 +269,13 @@ def ask(question: str, user: str, session_id: str | None = None, llm=None, *, me
         answer = "The response stopped at the model's token limit."
     if successful_tool_count == 0:
         answer = "I could not establish an answer because no successful tool returned FalkorDB evidence."
+    phase_started = time.perf_counter()
     record_episode_if_live(memory, user, session_id, question, answer,
                            [item["tool"] for item in trail], sorted(entities))
+    LOGGER.info("ask_timing visitor=%s phase=recording ms=%.2f", visitor,
+                (time.perf_counter() - phase_started) * 1000)
+    LOGGER.info("ask_timing visitor=%s phase=total ms=%.2f", visitor,
+                (time.perf_counter() - request_started) * 1000)
     return {"answer":answer, "tool_calls":trail, "graph":evidence, "entities":sorted(entities),
             "stop_reason":stop_reason, "usage":usages, "memory_recall":recalled,
-            "team_memory":team_recall, "followups":build_followups(successful_calls)}
+            "team_memory":team_recall, "followups":build_followups(successful_calls, question=question)}

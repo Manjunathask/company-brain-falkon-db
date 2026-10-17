@@ -6,8 +6,15 @@ def _departure(params: dict, rows: list[dict]) -> list[str]:
     login = params.get("login")
     if not login:
         return []
-    return [f"Who could take over {row['component']} if {login} left?"
-            for row in rows if row.get("component") and row.get("risk") in {"ORPHANED", "AT RISK"}]
+    questions = []
+    for row in rows:
+        if not row.get("component") or row.get("risk") not in {"ORPHANED", "AT RISK"}:
+            continue
+        person = row.get("name")
+        row_login = row.get("login") or login
+        person = f"{person} (@{row_login})" if person else row_login
+        questions.append(f"Who could take over {row['component']} if {person} left?")
+    return questions
 
 
 def _decision_share(params: dict, rows: list[dict]) -> list[str]:
@@ -38,17 +45,36 @@ FOLLOWUP_TEMPLATES = {
 }
 
 
-def build_followups(successful_calls: list[dict], limit: int = 4) -> list[str]:
-    questions = []
-    seen = set()
+def build_followups(successful_calls: list[dict], limit: int = 4,
+                    question: str | None = None) -> list[str]:
+    """Choose varied suggestions with one initial suggestion per tool."""
+    questions_by_tool = {}
     for call in successful_calls:
-        make = FOLLOWUP_TEMPLATES.get(call.get("tool"))
-        if not make:
-            continue
-        for question in make(call.get("params") or {}, call.get("rows") or []):
-            if question not in seen:
-                seen.add(question)
-                questions.append(question)
-                if len(questions) >= limit:
-                    return questions
-    return questions
+        tool = call.get("tool")
+        make = FOLLOWUP_TEMPLATES.get(tool)
+        if make:
+            questions_by_tool.setdefault(tool, []).extend(
+                make(call.get("params") or {}, call.get("rows") or []),
+            )
+    by_tool = list(questions_by_tool.items())
+
+    asked = " ".join((question or "").casefold().split())
+    seen = set()
+    counts = {}
+    suggestions = []
+    # Round-robin passes prevent one tool with many rows from filling every chip.
+    max_passes = max((len(items) for _, items in by_tool), default=0)
+    for index in range(max_passes):
+        for tool, items in by_tool:
+            if index >= len(items) or counts.get(tool, 0) >= 2:
+                continue
+            candidate = items[index]
+            normalized = " ".join(candidate.casefold().split())
+            if normalized == asked or candidate in seen:
+                continue
+            seen.add(candidate)
+            suggestions.append(candidate)
+            counts[tool] = counts.get(tool, 0) + 1
+            if len(suggestions) >= limit:
+                return suggestions
+    return suggestions

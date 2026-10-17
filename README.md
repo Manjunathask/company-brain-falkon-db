@@ -121,6 +121,10 @@ Important relationships include `AUTHORED`, `TOUCHED`, `IN_MODULE`, `IN_COMPONEN
 
 The agent selects a small set of graph tools; each tool runs its own readable `.cypher` file against FalkorDB. The returned rows and paths form the evidence graph displayed beside the answer, and “How I know” shows the Cypher and parameters. Without an LLM, the same tools and departure simulator remain callable directly.
 
+Where the time goes (server log, one departure question): the graph work is fast — one lookup in 19 ms and five departure tools in parallel in 238 ms — while the model spends about 13 s across three rounds, 9.3 s of it writing the final answer. Follow-up questions under each answer are built from the tools' result rows, not from the answer text, so every suggestion refers to something the graph returned.
+
+The UI needs no sign-in: the browser keeps an anonymous visitor id for per-visitor memory, and "Start over" deletes it.
+
 The product uses FalkorDB Cypher and full-text indexes for Decision and PR title search, `algo.betweenness` for collaboration bridges, `algo.WCC` for connected collaboration groups, `GRAPH.COPY` for an isolated departure what-if, and `GRAPH.RO_QUERY` for read-only tools. The graph is required for the simulator, paths, and graph answers.
 
 ## Query catalogue
