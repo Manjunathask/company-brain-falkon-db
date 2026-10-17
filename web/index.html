@@ -3,48 +3,50 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#f5f7fb">
-  <title>Bus Factor · Delta Lake company brain</title>
-  <link rel="stylesheet" href="/style.css">
+  <meta name="theme-color" content="#f7f8fa">
+  <title>Bus Factor · Delta Lake knowledge map</title>
+  <link rel="stylesheet" href="/style.css?v=11b">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.30.4/cytoscape.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/15.0.7/marked.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.2.6/purify.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 </head>
 <body>
   <header class="topbar">
-    <a class="brand" href="/"><span class="brand-mark">BF</span><span>Bus Factor<small>Delta Lake company brain</small></span></a>
-    <div class="status"><i id="health-dot"></i><span id="health-text">Connecting to graph…</span></div>
+    <a class="brand" href="#leave"><span class="brand-mark" aria-hidden="true">BF</span><span><strong>Bus Factor</strong><small>Who holds the knowledge in Delta Lake, and what breaks if they leave</small></span></a>
+    <div class="dataset"><span id="dataset-chip">Loading dataset details…</span><button id="about-button" class="text-button" type="button" aria-expanded="false" aria-controls="about-popover">About the data</button>
+      <div id="about-popover" class="popover hidden" role="dialog" aria-labelledby="about-title"><h2 id="about-title">About the data</h2><p>Public activity from <a href="https://github.com/delta-io/delta" target="_blank" rel="noopener">delta-io/delta</a>, with a two-year repository snapshot. Risk estimates use recent qualifying commits.</p><p>Bot activity, bulk commits touching more than 100 files, and deleted files are excluded from the relevant activity measures.</p><p>Estimated from public repository activity; it does not measure everything a person knows.</p><p id="dataset-counts" class="muted"></p></div>
+    </div>
   </header>
   <main class="shell">
-    <nav class="tabs" aria-label="Workspace">
-      <button class="tab active" data-panel="chat-panel">Ask the graph</button>
-      <button class="tab" data-panel="departure-panel">Departure simulator</button>
+    <nav class="tabs" aria-label="Main views" role="tablist">
+      <a class="tab active" id="tab-leave" role="tab" href="#leave" aria-selected="true" aria-controls="leave-view">What if someone leaves?</a>
+      <a class="tab" id="tab-ask" role="tab" href="#ask" aria-selected="false" aria-controls="ask-view">Ask</a>
     </nav>
-    <section id="memory-banner" class="memory-banner hidden" aria-live="polite"></section>
-    <div class="workspace">
-      <section class="left-column">
-        <section id="chat-panel" class="panel active-panel">
-          <div class="panel-heading"><div><p class="eyebrow">Graph assistant</p><h1>Ask about Delta</h1><p>Answers are grounded in FalkorDB traversals. Expand “How I know” to inspect the Cypher.</p></div></div>
-          <div class="identity-row"><label for="user-input">Your GitHub login</label><input id="user-input" value="murali-db" autocomplete="username"></div>
-          <section class="team-memory"><h2>Team memory</h2><ul id="team-memory-list"><li class="muted">Loading shared observationsâ€¦</li></ul></section>
-          <div id="chat-list" class="chat-list" aria-live="polite"></div>
-          <form id="ask-form" class="ask-form"><label class="sr-only" for="question-input">Question</label><textarea id="question-input" rows="2" placeholder="What does the project lose if murali-db leaves?" required></textarea><button class="primary" type="submit">Ask <span aria-hidden="true">↗</span></button></form>
-          <div class="suggestions"><button>What does the project lose if this maintainer leaves?</button><button>Who knows the kernel best?</button></div>
+    <div class="views">
+      <section id="leave-view" class="view active-view" role="tabpanel" aria-labelledby="tab-leave">
+        <section class="intro"><p class="eyebrow">A map of shared project knowledge</p><h1>See what depends on one person.</h1><p>Explore where recent Delta Lake code and decisions rely on a small number of contributors.</p>
+          <div id="headline" class="headline" aria-live="polite">Loading the repository snapshot…</div>
+          <p class="data-note">Risk uses the last 12 months and requires at least 2 commits per contributor. <span class="tip" tabindex="0" aria-label="What is a bus factor? A code area has bus factor 1 when one person wrote at least half of its qualifying commits.">What is a bus factor?<span class="tooltip" role="tooltip">A code area has bus factor 1 when one person wrote at least half of its qualifying commits. It can still have other contributors.</span></span></p>
         </section>
-        <section id="departure-panel" class="panel">
-          <div class="panel-heading"><div><p class="eyebrow">What if someone leaves?</p><h1>Departure simulator</h1><p>Choose a maintainer to see exposed code, decisions, collaborators, and a likely successor.</p></div></div>
-          <form id="person-form" class="person-form"><label for="person-search">Find a person</label><div class="search-row"><input id="person-search" placeholder="Search login or name" value="murali-db"><button type="submit" class="secondary">Find</button></div></form>
-          <div id="person-results" class="person-results"></div>
-          <div id="departure-results" class="departure-results"><div class="empty-state">Search for a person, then select a result to run the simulator.</div></div>
-        </section>
+        <section class="picker-section"><h2>Choose a maintainer</h2><p>See the code areas, files, decisions, and collaboration links connected to their recent work.</p><div id="people-picker"></div></section>
+        <section class="starter-section"><h2>Or start with a question</h2><div id="leave-suggestions" class="chip-list" aria-live="polite"><span class="muted">Loading suggested questions…</span></div></section>
+        <p class="disclaimer">Estimated from public repository activity; it does not measure everything a person knows.</p>
+        <section id="team-line" class="team-line" aria-live="polite"></section>
+        <section id="departure-results" class="departure-results" aria-live="polite"></section>
+        <EvidencePanel id="leave-evidence" title="Departure evidence"></EvidencePanel>
       </section>
-      <aside class="right-column">
-        <div class="graph-heading"><div><p class="eyebrow">Evidence</p><h2>Answer graph</h2></div><div class="graph-actions"><span id="graph-count">0 nodes · 0 edges</span><button id="evidence-toggle" class="secondary hidden" type="button">Show full evidence</button></div></div>
-        <div id="cy" role="img" aria-label="Evidence graph for the selected answer"></div>
-        <div class="graph-legend"><span><i class="dot person"></i>Person</span><span><i class="dot component"></i>Component</span><span><i class="dot module"></i>Module</span><span><i class="dot file"></i>File</span><span><i class="dot decision"></i>Decision</span><span><i class="dot other"></i>Commit / PR / Issue</span></div>
-        <section class="node-details"><h3>Selected node</h3><pre id="node-properties">Click a graph node to inspect its properties.</pre></section>
-        <div class="tools-box"><label for="tool-select">Run a graph tool directly</label><div class="search-row"><select id="tool-select"><option value="find_entity">Find entity</option><option value="bus_factor">Module bus factor</option><option value="groups">Collaboration groups</option><option value="bridges">Collaboration bridges</option><option value="drift">Decision drift</option><option value="decision_trace">Decision trace</option></select><button id="run-tool" class="secondary" type="button">Run</button></div><input id="tool-param" placeholder="Search text, file path, or required value"><pre id="tool-result" class="tool-result hidden"></pre></div>
-      </aside>
+      <section id="ask-view" class="view" role="tabpanel" aria-labelledby="tab-ask" hidden>
+        <section id="memory-banner" class="memory-banner hidden" aria-live="polite"></section>
+        <div class="ask-intro"><p class="eyebrow">Ask the graph</p><h1>Explore Delta Lake knowledge</h1><p>Ask a question. Bus Factor answers from the repository graph and shows the query paths behind its answer.</p></div>
+        <div id="chat-list" class="chat-list" aria-live="polite"></div>
+        <section id="ask-empty" class="ask-empty"><h2>Start with a question</h2><div id="ask-suggestions" class="chip-list"><span class="muted">Loading suggested questions…</span></div></section>
+        <div id="chat-disabled" class="notice hidden" role="status">Chat needs an Anthropic API key on the server; you can still use the departure simulator and the suggested questions.</div>
+        <form id="ask-form" class="ask-form"><label class="sr-only" for="question-input">Your question</label><div class="composer"><div class="ghost-wrap"><div id="ghost-text" aria-hidden="true"></div><textarea id="question-input" rows="1" placeholder="Ask about people, code areas, or decisions…"></textarea></div><button class="primary" type="submit">Ask</button></div><div class="composer-note">Enter to send · Shift+Enter for a new line <button id="start-over" class="text-button" type="button">Start over</button></div></form>
+        <EvidencePanel id="ask-evidence" title="Answer evidence"></EvidencePanel>
+      </section>
     </div>
   </main>
-  <script src="/app.js" defer></script>
+  <template id="evidence-template"><section class="evidence panel-card"><div class="graph-heading"><div><p class="eyebrow">Evidence</p><h2></h2></div><div class="graph-actions"><span class="graph-count">No evidence selected</span><button class="secondary fit-graph" type="button">Fit</button><button class="secondary reset-graph" type="button">Reset</button><button class="secondary zoom-in" type="button" aria-label="Zoom in">+</button><button class="secondary zoom-out" type="button" aria-label="Zoom out">−</button></div></div><div class="graph-canvas" role="img" aria-label="Evidence graph"></div><div class="graph-legend"><span>Person</span><span>Code area</span><span>File</span><span>Decision</span><span>PR / commit / issue</span></div><section class="node-details"><h3>Selected evidence</h3><div class="node-properties">Select a node to see its details.</div></section><section class="evidence-text"><h3>Evidence as text</h3><ul></ul></section></section></template>
+  <script type="module" src="/app.js?v=11b"></script>
 </body>
 </html>

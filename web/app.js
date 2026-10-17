@@ -1,225 +1,62 @@
-const $ = (selector) => document.querySelector(selector);
-const byId = (id) => document.getElementById(id);
-const state = {cy:null, sessionId:crypto.randomUUID(), evidence:null};
+import { renderEvidence } from "./graph.js?v=11b";
+import { mountPeopleCombobox } from "./people-combobox.js?v=11b";
 
-// The departure renderer reads only these fields. The API contract test mirrors this list.
-const DEPARTURE_FIELDS = Object.freeze({
-  simulation: ["rows", "login", "mainGroupBefore", "mainGroupAfter", "cutOff", "betweennessRank"],
-  impact: ["rows", "component", "risk", "expertsLeft", "theirCommits", "remaining"],
-  files: ["rows", "component", "orphanedFiles", "theirFiles", "examplePaths"],
-  decision_share: ["rows", "decision", "theirPRs", "totalPRs", "share", "otherOpeners", "login", "prs"],
-  successor: ["rows", "successor", "sharedFiles", "outOf", "theirCommits"],
-  graph: ["nodes", "edges"],
-  focus_graph: ["nodes", "edges"],
-  successor_component: []
-});
-
-async function api(path, options={}) {
-  const response = await fetch(path, {headers:{"Content-Type":"application/json", ...(options.headers||{})}, ...options});
-  const data = await response.json().catch(()=>({detail:response.statusText}));
-  if (!response.ok) throw new Error(data.detail || `Request failed (${response.status})`);
-  return data;
+const $ = s => document.querySelector(s);
+const state = { evidence: { leave: null, ask: null }, suggestions: [], departureToken: 0, askToken: 0, sessionId: crypto.randomUUID(), currentLogin: "" };
+function visitor() { try { let v = localStorage.getItem("busfactor-visitor"); if (!/^v_[0-9a-f]{32}$/.test(v || "")) { v = `v_${crypto.randomUUID().replaceAll("-", "")}`; localStorage.setItem("busfactor-visitor", v); } return v; } catch (_) { return `v_${crypto.randomUUID().replaceAll("-", "")}`; } }
+const visitorId = visitor();
+async function api(url, options = {}) { const r = await fetch(url, { headers: { "Content-Type": "application/json", ...(options.headers || {}) }, ...options }); let d = {}; try { d = await r.json(); } catch (_) {} if (!r.ok) { const e = new Error(d.detail || `Request failed (${r.status})`); e.status = r.status; throw e; } return d; }
+const el = (tag, cls = "", value = "") => { const n = document.createElement(tag); if (cls) n.className = cls; n.textContent = value; return n; };
+function setTab() { const ask = location.hash === "#ask"; $("#tab-leave").classList.toggle("active", !ask); $("#tab-ask").classList.toggle("active", ask); $("#tab-leave").setAttribute("aria-selected", String(!ask)); $("#tab-ask").setAttribute("aria-selected", String(ask)); $("#leave-view").hidden = ask; $("#ask-view").hidden = !ask; draw(ask ? "ask" : "leave"); if (!ask && location.hash.startsWith("#leave/")) { const login = decodeURIComponent(location.hash.slice(7)); if (login !== state.currentLogin) selectPerson(login, false); } }
+window.addEventListener("hashchange", setTab);
+$("#about-button").onclick = () => { const p = $("#about-popover"), open = p.classList.toggle("hidden"); $("#about-button").setAttribute("aria-expanded", String(!open)); };
+function draw(view) { const saved = state.evidence[view], panel = $(`#${view}-evidence`); if (saved && panel) renderEvidence(panel, saved.graph, { roots: saved.roots, layout: saved.layout }); }
+function evidence(view, graph, roots = [], layout = "chat") { state.evidence[view] = { graph: graph || { nodes: [], edges: [] }, roots, layout }; if ((location.hash === "#ask") === (view === "ask")) draw(view); }
+function suggestionText(item) { return typeof item === "string" ? item : item.question || item.label || "Explore the graph"; }
+function chip(item, destination) { const b = el("button", "chip", suggestionText(item)); b.type = "button"; b.onclick = () => { if (item.tool && !$("#chat-disabled").classList.contains("hidden")) { if (item.tool === "departure") return selectPerson(item.params?.login); location.hash = "#ask"; return runToolSuggestion(item); } location.hash = "#ask"; $("#question-input").value = suggestionText(item); grow(); $("#question-input").focus(); if (destination === "ask" && $("#chat-disabled").classList.contains("hidden")) send(suggestionText(item)); }; return b; }
+async function runToolSuggestion(item) { const chat = $("#chat-list"), q = suggestionText(item); chat.append(message("You", q, "user-message"), message("Graph tool", "Querying the graph…", "pending-message")); try { const r = await api(`/api/tools/${encodeURIComponent(item.tool)}`, { method: "POST", body: JSON.stringify({ params: item.params || {} }) }); chat.lastElementChild.remove(); const a = el("article", "chat-message"); a.append(el("div", "message-label", item.label || item.tool), el("pre", "tool-result", JSON.stringify(r.rows || [], null, 2))); chat.append(a); evidence("ask", r.graph, Object.values(item.params || {})); } catch (e) { chat.lastElementChild.textContent = e.message; } }
+async function loadLanding() {
+  try { const d = await api("/api/summary"); $("#headline").textContent = `${d.busFactorOne} of ${d.componentsReported} active code areas in Delta Lake have a bus factor of 1: one person wrote at least half of their commits in the last 12 months.`; $("#dataset-chip").textContent = `${d.snapshotDate || "Snapshot date unavailable"} · ${d.dataWindow || "two-year repository window"}`; $("#dataset-counts").textContent = `Risk settings: ${d.windowDays || 365} days, at least ${d.minCommits || 2} commits, and ${d.minTotal || 5} area commits.`; } catch (_) { $("#headline").textContent = "Repository summary is temporarily unavailable. You can still choose a contributor or explore a question."; $("#dataset-chip").textContent = "Repository snapshot unavailable"; $("#dataset-counts").textContent = "Risk settings are unavailable while the summary endpoint is offline."; }
+  try { const health = await api("/api/health"); $("#dataset-counts").textContent += ` Snapshot graph: ${Number(health.nodes).toLocaleString()} records and ${Number(health.edges).toLocaleString()} relationships.`; } catch (_) { $("#dataset-counts").textContent += " Snapshot graph counts unavailable."; }
+  try { const d = await api("/api/suggestions"); state.suggestions = d.suggestions || []; const l = $("#leave-suggestions"), a = $("#ask-suggestions"); l.replaceChildren(); a.replaceChildren(); state.suggestions.slice(0, 3).forEach(x => l.append(chip(x, "leave"))); state.suggestions.slice(0, 4).forEach(x => a.append(chip(x, "ask"))); if (!state.suggestions.length) l.textContent = a.textContent = "Suggested questions are temporarily unavailable."; } catch (_) { $("#leave-suggestions").textContent = $("#ask-suggestions").textContent = "Suggested questions are temporarily unavailable."; }
+  try { const d = await api("/api/team"), r = d.refreshRuns?.[0]; $("#team-line").textContent = r ? `Recent changes in the repo: ${r.newCommits || 0} new commits and ${r.newPRs || 0} new pull requests in the latest refresh.` : "Recent changes in the repo: the activity snapshot is ready to explore."; } catch (_) { $("#team-line").textContent = "Recent changes in the repo: activity summary unavailable."; }
 }
-function el(tag, cls, text) {
-  const node=document.createElement(tag);
-  if(cls) node.className=cls;
-  if(text!==undefined) node.textContent=text;
-  return node;
+function countRisk(d, risk) { return (d.impact?.rows || []).filter(r => r.risk === risk).length; }
+async function selectPerson(login, changeHash = true) { if (!login) return; state.currentLogin = login; if (changeHash) location.hash = `#leave/${encodeURIComponent(login)}`; const token = ++state.departureToken, out = $("#departure-results"); out.replaceChildren(el("p", "loading-state", `Looking at recent work by @${login}…`)); try { const d = await api(`/api/departure/${encodeURIComponent(login)}`); if (token === state.departureToken) renderDeparture(d, login); } catch (e) { if (token !== state.departureToken) return; out.replaceChildren(el("div", "empty-state", e.status === 404 ? `We couldn’t find @${login} in the active contributor list. Choose a suggested contributor or try another name.` : `Departure estimate temporarily unavailable: ${e.message}`)); evidence("leave", { nodes: [], edges: [] }, [], "departure"); } }
+const picker = mountPeopleCombobox($("#people-picker"), { onSelect: person => selectPerson(person.login) });
+function disclosure(parent, title, children, open = true) { const d = document.createElement("details"); d.className = "disclosure"; d.open = open; d.append(el("summary", "", title)); const body = el("div", "disclosure-body"); if (children.length) children.forEach(x => body.append(x)); else body.append(el("p", "muted", "No matching items in the current estimate.")); d.append(body); parent.append(d); }
+function list(values) { const ul = el("ul", "plain-list"); values.forEach(v => ul.append(el("li", "", v))); if (!values.length) ul.append(el("li", "muted", "No examples were returned.")); return ul; }
+function askAction(parent, question) { const b = el("button", "text-button", "Ask about this"); b.type = "button"; b.onclick = () => { location.hash = "#ask"; $("#question-input").value = question; grow(); $("#question-input").focus(); }; parent.append(b); }
+function areaCard(row, login, name) { const card = el("article", "detail-item"), h = el("h4", "", row.component); h.append(" ", el("span", `risk-badge ${row.risk === "ORPHANED" ? "orphan" : "at-risk"}`, row.risk)); card.append(h, el("p", "", `@${name} contributed ${row.theirCommits} recent commits. ${row.expertsLeft || 0} other active contributor${row.expertsLeft === 1 ? "" : "s"} remain${row.expertsLeft === 1 ? "s" : ""}: ${(row.remaining || []).join(", ") || "none"}.`)); const actions = el("div", "detail-actions"), b = el("button", "secondary", "Show successors"); b.type = "button"; b.onclick = async () => { b.disabled = true; b.textContent = "Checking…"; try { const d = await api("/api/tools/successor", { method: "POST", body: JSON.stringify({ params: { login, component: row.component } }) }); b.replaceWith(el("p", "successor-result", d.rows?.length ? `Suggested successor: ${d.rows.map(x => `${x.successor} (${x.sharedFiles}/${x.outOf} shared files)`).join(", ")}` : "No successor found for this area.")); } catch (_) { b.disabled = false; b.textContent = "Retry successors"; } }; actions.append(b); askAction(actions, `Who could take over ${row.component} if ${name} left?`); card.append(actions); return card; }
+function renderDeparture(d, login) {
+  const root = $("#departure-results"); root.replaceChildren(); const s = d.summary || {}, sim = d.simulation?.rows?.[0] || {}, person = d.graph?.nodes?.find(n => n.focusRole === "departing" || n.props?.login === login), name = s.name || person?.props?.name || login;
+  root.append(el("p", "departure-sentence", `If ${name} left: ${s.orphaned ?? countRisk(d, "ORPHANED")} code areas would have no other active contributor with at least 2 recent commits, ${s.atRisk ?? countRisk(d, "AT RISK")} would rely on one remaining person, ${s.orphanedFiles ?? "—"} current files would have no other recent editor, and ${s.cutOff ?? sim.cutOff?.length ?? "—"} people would lose their link to the main collaboration network.`));
+  const decisions = d.decision_share?.rows || [], mainDecision = decisions[0];
+  const decisionMetric = mainDecision ? `${mainDecision.theirPRs}/${mainDecision.totalPRs}` : "—";
+  const grid = el("div", "metric-grid"), metrics = [["Bus factor 1", "≥50%", "A bus factor of 1 means one person wrote at least half of the area’s qualifying commits; it does not mean nobody else contributed."], ["ORPHANED", s.orphaned ?? countRisk(d, "ORPHANED"), "No other active contributor has at least 2 recent commits in the area."], ["AT RISK", s.atRisk ?? countRisk(d, "AT RISK"), "One active contributor remains under the current activity threshold."], ["Bridge rank", sim.betweennessRank ?? "—", "This person’s position by how often they connect collaboration groups in shortest paths."], ["Cut off", s.cutOff ?? sim.cutOff?.length ?? 0, "People losing their only modeled shared-file link to the largest group."], ["Main group", `${sim.mainGroupBefore ?? "—"} → ${sim.mainGroupAfter ?? "—"}`, "Largest collaboration group before and after the departure scenario."], ["Decision share", decisionMetric, "For the leading linked decision: pull requests this person opened out of all pull requests linked to that decision."]];
+  metrics[2][1] = s.bridgeRank ?? sim.betweennessRank ?? "—";
+  metrics.forEach(([label, value, tip]) => { const card = el("div", "metric-card"); card.append(el("strong", "", value), el("span", "", label)); const t = el("span", "tip metric-tip", "What this means"); t.tabIndex = 0; t.append(el("span", "tooltip", tip)); card.append(t); grid.append(card); }); root.append(grid);
+  const impact = d.impact?.rows || [], exposed = impact.filter(r => ["ORPHANED", "AT RISK"].includes(r.risk));
+  disclosure(root, `Areas with no expert left · ${impact.filter(r => r.risk === "ORPHANED").length}`, exposed.filter(r => r.risk === "ORPHANED").map(r => areaCard(r, login, name)));
+  disclosure(root, `Areas relying on one person · ${impact.filter(r => r.risk === "AT RISK").length}`, exposed.filter(r => r.risk === "AT RISK").map(r => areaCard(r, login, name)));
+  disclosure(root, `Decisions they carry · ${decisions.length}`, decisions.map(r => { const c = el("article", "detail-item"); c.append(el("h4", "", r.decision), el("p", "", `They opened ${r.theirPRs} of ${r.totalPRs} pull requests linked to this decision (${Math.round((r.share || 0) * 100)}%).`), el("p", "muted", `Other PR authors: ${(r.otherOpeners || []).map(x => `${x.login} (${x.prs} PRs)`).join(", ") || "none listed"}`)); askAction(c, `Who else worked on the ${r.decision} decision?`); return c; }));
+  const cut = sim.cutOff || []; disclosure(root, `People cut off from the main network · ${cut.length}`, [list(cut.length ? cut : ["No people lose a link to the main collaboration group in this model."])]);
+  const files = d.files?.rows || []; disclosure(root, `Files only they edited · ${s.orphanedFiles ?? files.reduce((a, r) => a + Number(r.orphanedFiles || 0), 0)}`, [list(files.flatMap(r => (r.examplePaths || []).map(path => `${path} · ${r.component}`)))], false);
+  if (d.successor_component) { const c = el("article", "detail-item"); c.append(el("h4", "", `Suggested successor for ${d.successor_component}`), el("p", "", (d.successor?.rows || []).map(r => `${r.successor} · ${r.sharedFiles}/${r.outOf} shared files · ${r.theirCommits} commits`).join("; ") || "No successor estimate returned.")); root.append(c); }
+  evidence("leave", d.focus_graph || d.graph, [login], "departure");
 }
-function safe(value) { return value == null ? "" : String(value); }
-function capGraph(graph, limit=60) {
-  const nodes=graph?.nodes||[];
-  if(nodes.length<=limit) return {nodes,edges:graph?.edges||[]};
-  // The merged evidence is appended in tool-call order, so the tail favors the latest paths.
-  const kept=new Set(nodes.slice(-limit).map(node=>String(node.id)));
-  return {nodes:nodes.slice(-limit),edges:(graph.edges||[]).filter(edge=>kept.has(String(edge.source))&&kept.has(String(edge.target)))};
-}
-function graphLabel(node) {
-  const props=node.props||{};
-  const value=props.login||props.name||props.path||props.title||props.sha||props.number||node.key||"";
-  return `${node.label||"Node"}\n${value}`;
-}
-function drawGraph(graph, rooted=false) {
-  graph ||= {nodes:[],edges:[]};
-  byId("graph-count").textContent=`${graph.nodes?.length||0} nodes · ${graph.edges?.length||0} edges`;
-  if(!window.cytoscape){byId("node-properties").textContent="Cytoscape could not load. Graph evidence remains available in the answer details.";return;}
-  if(!state.cy){
-    state.cy=cytoscape({container:byId("cy"),elements:[],style:[
-      {selector:"node",style:{"label":"data(labelText)","font-size":9,"color":"#26344b","text-wrap":"wrap","text-max-width":105,"text-valign":"bottom","text-margin-y":6,"width":25,"height":25,"background-color":"#8997aa","border-width":1,"border-color":"#fff"}},
-      {selector:"edge",style:{"curve-style":"bezier","width":1.5,"line-color":"#b8c3d3","target-arrow-color":"#b8c3d3","target-arrow-shape":"triangle","arrow-scale":.7,"label":"data(type)","font-size":7,"color":"#66758b","text-background-color":"#fafbfd","text-background-opacity":1,"text-background-padding":2}},
-      {selector:'node[label = "Person"]',style:{"background-color":"#456ee3"}},
-      {selector:'node[label = "Component"]',style:{"background-color":"#e49a31"}},
-      {selector:'node[label = "Module"]',style:{"background-color":"#9067d8"}},
-      {selector:'node[label = "File"]',style:{"background-color":"#20a58d"}},
-      {selector:'node[label = "Decision"]',style:{"background-color":"#d35b88"}},
-      {selector:'node[risk = "ORPHANED"]',style:{"background-color":"#d65050","border-width":3,"border-color":"#ffc4c0"}},
-      {selector:'node[risk = "AT RISK"]',style:{"background-color":"#d78b18","border-width":3,"border-color":"#ffe1a8"}},
-      {selector:"node:selected",style:{"border-color":"#142d68","border-width":3}}
-    ],layout:{name:"cose",animate:false,fit:true,padding:28}});
-    state.cy.on("tap","node",evt=>{
-      const data=evt.target.data();
-      byId("node-properties").textContent=JSON.stringify({label:data.label,key:data.key,properties:data.props},null,2);
-    });
-  }
-  state.cy.elements().remove();
-  const nodes=(graph.nodes||[]).map(node=>({data:{id:String(node.id),label:node.label,labelText:graphLabel(node),key:node.key,
-    props:node.props||{},risk:node.risk||"",root:node.focusRole==="departing"}}));
-  const edges=(graph.edges||[]).map((edge,index)=>({data:{id:`e${index}`,source:String(edge.source),target:String(edge.target),type:edge.type}}));
-  state.cy.add([...nodes,...edges]);
-  const layout=rooted?{name:"breadthfirst",directed:false,roots:state.cy.nodes().filter(node=>node.data("root")===true),circle:false,spacingFactor:1.15,animate:false,fit:true,padding:34}:
-    {name:"cose",animate:false,fit:true,padding:28};
-  state.cy.layout(layout).run();
-}
-function showEvidence(focused, full, rooted=false) {
-  state.evidence={focused,full,rooted,showFull:false};
-  const toggle=byId("evidence-toggle");
-  const different=(focused?.nodes?.length||0)!==(full?.nodes?.length||0)||(focused?.edges?.length||0)!==(full?.edges?.length||0);
-  toggle.classList.toggle("hidden",!different);
-  toggle.textContent="Show full evidence";
-  drawGraph(focused,rooted);
-}
-byId("evidence-toggle").addEventListener("click",()=>{
-  if(!state.evidence)return;
-  state.evidence.showFull=!state.evidence.showFull;
-  byId("evidence-toggle").textContent=state.evidence.showFull?"Show focused graph":"Show full evidence";
-  drawGraph(state.evidence.showFull?state.evidence.full:state.evidence.focused,state.evidence.rooted&&!state.evidence.showFull);
-});
-function renderToolCalls(container, calls=[]) {
-  if(!calls.length){container.append(el("p","muted","No graph tool was used."));return;}
-  calls.forEach(call=>{
-    const card=el("div","call-card"),title=el("div","call-title"),name=el("span","",`${call.tool} · ${call.row_count} rows`),ms=el("small","",`${call.ms} ms`);
-    title.append(name,ms);card.append(title);const pre=el("pre");pre.textContent=Array.isArray(call.cypher)?call.cypher.join("\n\n"):call.cypher||"No Cypher was returned for this call.";card.append(pre);container.append(card);
-  });
-}
-function showMemoryRecall(item){
-  const changes=item.changedSinceLastAsked||[];
-  const changed=changes.reduce((sum,row)=>sum+(Number(row.commitCount)||0),0);
-  const entity=item.entity||"your graph topics",question=item.earlierQuestions?.[0];
-  byId("memory-banner").textContent=`Last time you asked${question?` “${question}”`:""} about ${entity}; since then ${changed} new commits are connected to it.`;
-  byId("memory-banner").classList.remove("hidden");
-}
-async function loadTeamMemory(){
-  const list=byId("team-memory-list");
-  try{const team=await api("/api/team");list.replaceChildren();
-    const items=(team.observations||[]).slice(0,8);
-    if(!items.length){list.append(el("li","muted","No shared observations yet."));return;}
-    items.forEach(item=>{const claim=item.kind==="user_claim"?" · user-provided claim":"";
-      const when=item.ts?new Date(Number(item.ts)).toLocaleString():"time unknown";
-      list.append(el("li","",`${item.agent} · ${when}${claim}: ${item.text}`));});
-  }catch(error){list.replaceChildren(el("li","muted",`Team memory unavailable: ${error.message}`));}
-}
-function renderAnswer(result, question) {
-  const user=el("article","chat-message user-message"),userLabel=el("div","message-label","You"),userText=el("div","answer-text",question);user.append(userLabel,userText);
-  const answer=el("article","chat-message"),label=el("div","message-label","Bus Factor · graph answer"),text=el("div","answer-text",result.answer||"No answer returned."),details=document.createElement("details"),summary=el("summary","",`How I know · ${result.tool_calls?.length||0} graph tool calls`),calls=el("div","tool-calls");
-  details.append(summary,calls);renderToolCalls(calls,result.tool_calls||[]);answer.append(label,text,details);byId("chat-list").append(user,answer);byId("chat-list").scrollTop=byId("chat-list").scrollHeight;
-  showEvidence(capGraph(result.graph,60),result.graph,false);
-  if(result.memory_recall?.length)showMemoryRecall(result.memory_recall[0]);
-  loadTeamMemory();
-}
-byId("ask-form").addEventListener("submit",async event=>{
-  event.preventDefault();const question=byId("question-input").value.trim(),user=byId("user-input").value.trim();if(!question||!user)return;
-  const button=event.submitter;button.disabled=true;button.textContent="Thinking…";
-  try{const result=await api("/api/ask",{method:"POST",body:JSON.stringify({question,user,sessionId:state.sessionId})});renderAnswer(result,question);byId("question-input").value="";}
-  catch(error){byId("chat-list").append(el("div","chat-message",`Request failed: ${error.message}`));}
-  finally{button.disabled=false;button.innerHTML='Ask <span aria-hidden="true">↗</span>';}
-});
-document.querySelectorAll(".tab").forEach(button=>button.addEventListener("click",()=>{
-  document.querySelectorAll(".tab").forEach(item=>item.classList.toggle("active",item===button));
-  document.querySelectorAll(".panel").forEach(panel=>panel.classList.toggle("active-panel",panel.id===button.dataset.panel));
-}));
-document.querySelectorAll(".suggestions button").forEach(button=>button.addEventListener("click",()=>{byId("question-input").value=button.textContent;byId("question-input").focus();}));
-function makeList(items){const list=el("ul");(items||[]).forEach(item=>list.append(el("li","",typeof item==="string"?item:JSON.stringify(item))));return list;}
-function addRiskRow(container,row){
-  const details=document.createElement("details");details.className="risk-card";
-  const summary=document.createElement("summary"),left=el("span","",`${row.component} · ${row.expertsLeft} ${row.expertsLeft===1?"expert":"experts"} left`),tag=el("span",`risk-tag ${row.risk==="ORPHANED"?"orphan":""}`,row.risk);
-  summary.append(left,tag);const content=el("div","risk-content");
-  const remaining=(row.remaining||[]).join(", ")||"none";
-  content.append(el("div","",`Their commits: ${row.theirCommits}; remaining expert${row.expertsLeft===1?"":"s"}: ${remaining}`));
-  details.append(summary,content);container.append(details);
-}
-function renderDeparture(data){
-  const root=byId("departure-results");root.replaceChildren();
-  const sim=data.simulation?.rows?.[0]||{};
-  const metrics=el("div","headline-grid");
-  [["Main group before",sim.mainGroupBefore],["Main group after",sim.mainGroupAfter],["Cut off",sim.cutOff?.length||0],["Bridge rank",sim.betweennessRank||"—"]].forEach(([label,value])=>{
-    const metric=el("div","metric");metric.append(el("strong","",safe(value)),el("span","",label));metrics.append(metric);
-  });
-  root.append(metrics);
-
-  const cutoff=document.createElement("details");cutoff.className="risk-card";cutoff.append(el("summary","","People cut off from the main group"));
-  const cutoffContent=el("div","risk-content");
-  cutoffContent.append(sim.cutOff?.length?makeList(sim.cutOff):el("div","","No people were cut off from the largest surviving group."));
-  cutoff.append(cutoffContent);root.append(cutoff);
-
-  const impact=data.impact?.rows||[],exposed=impact.filter(row=>row.risk==="ORPHANED"||row.risk==="AT RISK");
-  exposed.sort((a,b)=>(b.theirCommits||0)-(a.theirCommits||0));
-  const riskTitle=el("h3","","Component exposure");root.append(riskTitle);
-  if(!exposed.length)root.append(el("p","empty-state","No recent component expertise is exposed for this person."));
-  exposed.forEach(row=>addRiskRow(root,row));
-  const covered=impact.filter(row=>row.risk==="COVERED").sort((a,b)=>(b.theirCommits||0)-(a.theirCommits||0));
-  if(covered.length){
-    const group=document.createElement("details");group.className="risk-card covered-group";
-    group.append(el("summary","",`+ ${covered.length} covered components`));
-    const content=el("div","risk-content");covered.forEach(row=>addRiskRow(content,row));group.append(content);root.append(group);
-  }
-
-  const files=data.files?.rows||[],fileCard=document.createElement("details");fileCard.className="risk-card";
-  fileCard.append(el("summary","",`Orphaned files by component · ${files.reduce((sum,row)=>sum+(row.orphanedFiles||0),0)} files`));
-  const fileContent=el("div","risk-content");
-  files.forEach(row=>{fileContent.append(el("strong","",`${row.component} · ${row.orphanedFiles} of ${row.theirFiles} files`));fileContent.append(makeList(row.examplePaths||[]));});
-  if(!files.length)fileContent.append(el("div","","No orphaned current files found."));
-  fileCard.append(fileContent);root.append(fileCard);
-
-  const decisions=data.decision_share?.rows||[],decisionCard=document.createElement("details");decisionCard.className="risk-card";
-  decisionCard.append(el("summary","","Decisions they carry · who to ask"));
-  const decisionContent=el("div","risk-content");
-  if(!decisions.length)decisionContent.append(el("div","","No decision share above the current threshold."));
-  decisions.forEach(row=>{
-    decisionContent.append(el("strong","",`${row.decision} · ${row.theirPRs}/${row.totalPRs} implementing PRs (${Math.round((row.share||0)*100)}%)`));
-    decisionContent.append(makeList((row.otherOpeners||[]).map(person=>`${person.login} (${person.prs} PRs)`)));
-  });
-  decisionCard.append(decisionContent);root.append(decisionCard);
-
-  const successors=data.successor?.rows||[],successorCard=el("div","risk-card");
-  successorCard.append(el("div","call-title",`Best successor for ${data.successor_component||"the exposed component"}`));
-  const successorContent=el("div","risk-content");
-  successorContent.append(data.successor_component?makeList(successors.map(row=>`${row.successor} · ${row.sharedFiles}/${row.outOf} shared files · ${row.theirCommits} component commits`)):el("div","","No ORPHANED or AT RISK component was found."));
-  successorCard.append(successorContent);root.append(successorCard);
-  showEvidence(data.focus_graph||{nodes:[],edges:[]},data.graph||{nodes:[],edges:[]},true);
-}
-byId("person-form").addEventListener("submit",async event=>{
-  event.preventDefault();const text=byId("person-search").value.trim();if(!text)return;
-  const out=byId("person-results");out.replaceChildren(el("span","muted","Searching the graph…"));
-  try{
-    const result=await api("/api/tools/find_entity",{method:"POST",body:JSON.stringify({params:{text,limit:15}})});out.replaceChildren();
-    const people=(result.rows||[]).filter(row=>row.kind==="person");
-    if(!people.length)out.append(el("span","muted","No people matched that search."));
-    people.forEach(person=>{const login=person.key,button=el("button","person-result",`${person.label||login} · @${login}`);button.type="button";button.addEventListener("click",()=>runDeparture(login));out.append(button);});
-  }catch(error){out.replaceChildren(el("span","muted",error.message));}
-});
-async function runDeparture(login){
-  byId("person-search").value=login;byId("departure-results").replaceChildren(el("div","empty-state","Running graph departure queries…"));
-  try{renderDeparture(await api(`/api/departure/${encodeURIComponent(login)}`));}
-  catch(error){byId("departure-results").replaceChildren(el("div","empty-state",`Simulator failed: ${error.message}`));}
-}
-const toolParam=byId("tool-param");
-byId("tool-select").addEventListener("change",()=>{
-  const value=byId("tool-select").value;toolParam.placeholder=value==="find_entity"?"Search text":value==="decision_trace"?"Exact file path":value==="drift"?"Confidence (high or low)":"Optional filter";
-  toolParam.classList.toggle("hidden",["groups","bridges","bus_factor"].includes(value));
-});
-byId("run-tool").addEventListener("click",async()=>{
-  const name=byId("tool-select").value,value=toolParam.value.trim();let params={};
-  if(name==="find_entity")params={text:value};if(name==="decision_trace")params={path:value};if(name==="drift"&&value)params={minConfidence:value};
-  if(name==="bus_factor")params={minCommits:2,minTotal:5};if(name==="bridges")params={limit:10};
-  byId("tool-result").classList.remove("hidden");byId("tool-result").textContent="Running…";
-  try{const result=await api(`/api/tools/${name}`,{method:"POST",body:JSON.stringify({params})});byId("tool-result").textContent=JSON.stringify(result.rows,null,2);showEvidence(capGraph(result.graph,60),result.graph,false);}
-  catch(error){byId("tool-result").textContent=error.message;}
-});
-async function init(){
-  try{const health=await api("/api/health");byId("health-dot").className="good";byId("health-text").textContent=`${health.nodes.toLocaleString()} nodes · ${health.edges.toLocaleString()} edges`;}
-  catch(_){byId("health-dot").className="bad";byId("health-text").textContent="Graph unavailable";}
-  try{const memory=await api(`/api/memory/${encodeURIComponent(byId("user-input").value)}`);if(memory.recall?.length)showMemoryRecall(memory.recall[0]);else if(memory.episodes?.[0]){byId("memory-banner").textContent=`Last session: ${memory.episodes[0].text||"a graph question"}.`;byId("memory-banner").classList.remove("hidden");}}
-  catch(_){}
-}
-init();
-loadTeamMemory();
+function message(label, content, cls = "") { const a = el("article", `chat-message ${cls}`); a.append(el("div", "message-label", label), el("div", "answer-text", content)); return a; }
+function markdown(node, source) { if (window.marked?.parse && window.DOMPurify?.sanitize) { node.innerHTML = window.DOMPurify.sanitize(window.marked.parse(source || "")); node.classList.add("markdown"); } else node.textContent = source || "No answer returned."; }
+function toolCalls(parent, calls) { calls.forEach(c => { const item = el("section", "call-card"), head = el("div", "call-title", c.label || c.tool); head.append(el("small", "", `${c.row_count ?? 0} rows · ${c.ms ?? 0} ms`)); item.append(head, el("div", "tool-params", `Parameters\n${JSON.stringify(c.params || {}, null, 2)}`), el("pre", "tool-rows", c.rows ? JSON.stringify(c.rows, null, 2) : `${c.row_count ?? 0} result rows returned; row values are not included in this API trace.`)); const details = document.createElement("details"); details.append(el("summary", "", "Cypher query")); const copy = el("button", "secondary copy-button", "Copy query"); copy.type = "button"; copy.onclick = async () => { try { await navigator.clipboard.writeText(c.cypher || ""); copy.textContent = "Copied"; } catch (_) { copy.textContent = "Copy unavailable"; } }; details.append(copy, el("pre", "", c.cypher || "Query text unavailable")); item.append(details); parent.append(item); }); }
+function answer(result) { const a = el("article", "chat-message answer-message"); a.append(el("div", "message-label", "Bus Factor · graph answer")); const body = el("div", "answer-text"); markdown(body, result.answer); a.append(body); const details = document.createElement("details"); details.className = "how-know"; details.append(el("summary", "", `How I know · ${result.tool_calls?.length || 0} graph tool calls`)); const calls = el("div", "tool-calls"); toolCalls(calls, result.tool_calls || []); details.append(calls); a.append(details); const f = (result.followups || []).slice(0, 4); if (f.length) { const section = el("section", "followups"); section.append(el("strong", "", "Keep exploring")); const chips = el("div", "chip-list"); f.forEach(q => { const b = el("button", "chip", q); b.type = "button"; b.onclick = () => send(q); chips.append(b); }); section.append(chips); a.append(section); } $("#chat-list").append(a); evidence("ask", result.graph, Object.values(result.tool_calls?.[0]?.params || {})); }
+async function send(question) { question = question.trim(); if (!question) return; const token = ++state.askToken, chat = $("#chat-list"), pending = message("Bus Factor", "Querying the graph…", "pending-message"); pending.setAttribute("aria-live", "polite"); chat.append(message("You", question, "user-message"), pending); $("#ask-empty").classList.add("hidden"); $("#question-input").value = ""; grow(); chat.scrollTop = chat.scrollHeight; try { const d = await api("/api/ask", { method: "POST", body: JSON.stringify({ question, user: visitorId, sessionId: state.sessionId }) }); if (token !== state.askToken) return; pending.remove(); answer(d); } catch (e) { if (token !== state.askToken) return; pending.replaceChildren(el("p", "", e.status === 503 ? "Chat needs an Anthropic API key on the server; you can still use the departure simulator and the suggested questions." : `Could not answer this yet: ${e.message}`)); const retry = el("button", "secondary", "Retry"); retry.type = "button"; retry.onclick = () => { pending.remove(); send(question); }; pending.append(retry); if (e.status === 503) $("#chat-disabled").classList.remove("hidden"); } }
+$("#ask-form").onsubmit = e => { e.preventDefault(); send($("#question-input").value); };
+function grow() { const q = $("#question-input"); q.style.height = "auto"; q.style.height = `${Math.min(q.scrollHeight, 220)}px`; }
+$("#question-input").addEventListener("input", () => { grow(); updateGhost(); });
+$("#question-input").addEventListener("keydown", e => { const ghost = $("#ghost-text"); if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); $("#ask-form").requestSubmit(); } else if (e.key === "Escape") { ghost.textContent = ""; ghost.dataset.completion = ""; } else if (e.key === "Tab" && ghost.dataset.completion) { e.preventDefault(); $("#question-input").value = ghost.dataset.completion; ghost.textContent = ""; ghost.dataset.completion = ""; grow(); } });
+function updateGhost() { const value = $("#question-input").value, ghost = $("#ghost-text"); ghost.textContent = ""; ghost.dataset.completion = ""; if (!value.trim()) return; const match = state.suggestions.map(suggestionText).find(question => question.toLowerCase().startsWith(value.toLowerCase()) && question.length > value.length); if (match) { ghost.textContent = match; ghost.dataset.completion = match; } }
+$("#start-over").onclick = async () => { state.askToken++; try { await api(`/api/memory/${encodeURIComponent(visitorId)}`, { method: "DELETE" }); } catch (_) {} try { localStorage.removeItem("busfactor-visitor"); } catch (_) {} location.reload(); };
+async function loadMemory() { try { const d = await api(`/api/memory/${encodeURIComponent(visitorId)}`), x = d.recall?.[0]; if (x) { const entity = String(x.entity || "a Delta topic").replace(/^[^:]+:/, ""), n = x.commitCount || x.newCommits || 0; $("#memory-banner").textContent = `Welcome back — since you last asked about ${entity}, ${n} new commits landed.`; $("#memory-banner").classList.remove("hidden"); } } catch (_) {} }
+function mountEvidence(node) { const t = $("#evidence-template").content.firstElementChild.cloneNode(true); t.id = node.id; t.querySelector("h2").textContent = node.getAttribute("title"); node.replaceWith(t); }
+document.querySelectorAll("evidencepanel").forEach(mountEvidence);
+setTab(); loadLanding(); loadMemory();

@@ -1,5 +1,21 @@
 # Cypher query guide
 
+## `17_people_search.cypher`
+
+**What it answers:** search Active non-bot maintainers by recent authored commit activity.
+
+**Parameters:** $q is a case-insensitive login or name fragment; $since is an epoch-millisecond cutoff; $limit is 1..25.
+
+Distinct non-bulk commits are counted per person. Login/name prefixes rank ahead of contains matches, with recent commit count and login breaking ties.
+
+## `17b_team_delete_visitor_claims.cypher`
+
+**What it answers:** delete team-memory observations belonging to an anonymous visitor and report the number removed.
+
+**Parameters:** $agent is the validated `chat:v_<32 lowercase hex>` agent name.
+
+The query deletes only observations attached to that Agent and removes the Agent node, leaving other users' claims intact.
+
 One entry per query file. Parameters are passed by the Python tool registry; timestamps are epoch milliseconds.
 
 ## `14_mem_record_episode.cypher`
@@ -560,7 +576,7 @@ Starting at the requested file, this path walks backward through a commit and PR
 
 **Parameters:** $slug is the rejected Decision.slug.
 
-This follows SUPERSEDED_BY from the rejected choice to its replacement and issue. Participants on the replacement decision are gathered as people who can explain it.
+This follows SUPERSEDED_BY from the rejected choice to its replacement and issue. It also counts later edits to files connected to the replacement; that evidence gates a drift follow-up question.
 
 ## `10b_why_not_graph.cypher`
 

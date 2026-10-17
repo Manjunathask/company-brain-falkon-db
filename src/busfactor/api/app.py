@@ -2,6 +2,9 @@
 from __future__ import annotations
 
 import os
+import re
+from datetime import date
+import json
 from pathlib import Path
 from typing import Any
 
@@ -11,8 +14,8 @@ from pydantic import BaseModel, Field
 
 from busfactor import tools as graph_tools
 from busfactor.agent.loop import _validate, ask, tool_specs
-from busfactor.agent.memory import Memory
-from busfactor.db import get_graph, load_query
+from busfactor.agent.memory import Memory, mark_visitor_deleted
+from busfactor.db import get_client, get_graph, load_query
 from busfactor.team_memory import TeamMemory
 
 
@@ -204,7 +207,8 @@ def ask_endpoint(body: AskRequest):
 
 @app.get("/api/tools")
 def list_tools():
-    return {"tools": [spec for spec in tool_specs() if spec["name"] in graph_tools.TOOLS]}
+    return {"tools": [{**spec, "label": graph_tools.TOOL_LABELS.get(spec["name"], spec["name"])}
+                       for spec in tool_specs() if spec["name"] in graph_tools.TOOLS]}
 
 
 @app.post("/api/tools/{name}")
@@ -215,7 +219,7 @@ def run_tool(name: str, body: ToolRequest):
     if error:
         raise HTTPException(status_code=422, detail=error)
     try:
-        return graph_tools.TOOLS[name](**params)
+        return {**graph_tools.TOOLS[name](**params), "label": graph_tools.TOOL_LABELS.get(name, name)}
     except (TypeError, ValueError) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except Exception as exc:
@@ -225,6 +229,12 @@ def run_tool(name: str, body: ToolRequest):
 @app.get("/api/departure/{login}")
 def departure(login: str):
     try:
+        person_result = get_graph().ro_query(
+            "MATCH (p:Person:Active {login:$login}) WHERE coalesce(p.bot,false)=false "
+            "RETURN p.name AS name", {"login": login})
+        if not person_result.result_set:
+            raise HTTPException(status_code=404, detail=f"No active person with login '{login}' in the graph.")
+        person_name = person_result.result_set[0][0] or login
         results = {"simulation": graph_tools.simulate_departure(login),
                    "impact": graph_tools.departure_impact(login),
                    "files": graph_tools.departure_files(login),
@@ -241,7 +251,108 @@ def departure(login: str):
             _merge_graph(evidence, results[key].get("graph", {}))
         results["graph"] = evidence
         results["focus_graph"] = _focused_departure_graph(login, results, results["impact"].get("rows", []))
+        simulation_row = (results["simulation"].get("rows") or [{}])[0]
+        impact_rows = results["impact"].get("rows", [])
+        file_rows = results["files"].get("rows", [])
+        results["summary"] = {
+            "name": person_name,
+            "orphaned": sum(row.get("risk") == "ORPHANED" for row in impact_rows),
+            "atRisk": sum(row.get("risk") == "AT RISK" for row in impact_rows),
+            "orphanedFiles": sum(int(row.get("orphanedFiles") or 0) for row in file_rows),
+            "cutOff": len(simulation_row.get("cutOff") or []),
+            "mainGroupBefore": simulation_row.get("mainGroupBefore"),
+            "mainGroupAfter": simulation_row.get("mainGroupAfter"),
+            "bridgeRank": simulation_row.get("betweennessRank"),
+        }
         return results
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+def _read_rows(query_name: str, params: dict, graph=None) -> list[dict]:
+    graph = graph or get_graph()
+    result = graph.ro_query(load_query(query_name), params)
+    columns = [header[1] for header in result.header]
+    return [dict(zip(columns, row)) for row in result.result_set]
+
+
+@app.get("/api/summary")
+def summary():
+    result = graph_tools.bus_factor_component(_include_graph=False)
+    rows = result.get("rows", [])
+    reportable = [row for row in rows if row.get("component") is not None]
+    manifest = Path(__file__).resolve().parents[3] / "data" / "snapshot" / "manifest.json"
+    try:
+        snapshot_date = json.loads(manifest.read_text(encoding="utf-8"))["exported_at"][:10]
+    except (OSError, ValueError, KeyError, TypeError):
+        snapshot_date = date.today().isoformat()
+    return {
+        "busFactorOne": sum(row.get("busFactor") == 1 for row in reportable),
+        "componentsReported": len(reportable),
+        "windowDays": 365,
+        "minCommits": graph_tools.DEFAULTS["minCommits"],
+        "minTotal": graph_tools.DEFAULTS["minTotal"],
+        "examples": [{"component": row["component"], "topExpert": row["topExpert"], "total": row["total"]}
+                     for row in sorted((r for r in reportable if r.get("busFactor") == 1),
+                                       key=lambda r: (-int(r.get("total") or 0), r["component"]))[:3]],
+        "snapshotDate": snapshot_date,
+        "dataWindow": "2 years loaded; risk uses the last 12 months and at least 2 commits",
+    }
+
+
+@app.get("/api/people")
+def people(q: str = "", limit: int = 10):
+    limit = max(1, min(25, int(limit)))
+    since = graph_tools.DEFAULTS["since"]
+    rows = _read_rows("17_people_search", {"q": q.strip(), "since": since, "limit": limit})
+    return {"people": [{key: row.get(key) for key in ("login", "name", "recentCommits", "lastSeen")}
+                        for row in rows]}
+
+
+@app.get("/api/suggestions")
+def suggestions():
+    ranked_people = _read_rows("17_people_search", {"q": "", "since": graph_tools.DEFAULTS["since"], "limit": 1})
+    components = graph_tools.bus_factor_component().get("rows", [])
+    risky = sorted((row for row in components if row.get("component") and row.get("busFactor") == 1),
+                   key=lambda row: (-int(row.get("total") or 0), row["component"]))
+    old = _read_rows("10b_why_not", {"slug": "managed-commits"})
+    starters = []
+    if ranked_people:
+        person = ranked_people[0]
+        login, name = person["login"], person.get("name") or person["login"]
+        starters.append({"id": "departure", "question": f"What does the project lose if {name} (@{login}) leaves?",
+                         "tool": "departure", "params": {"login": login}})
+    if risky:
+        component = risky[0]
+        starters.append({"id": "successor", "question": f"Who could take over {component['component']} if {component['topExpert']} left?",
+                         "tool": "successor", "params": {"login": component["topExpert"], "component": component["component"]}})
+    if old and old[0].get("chosenInstead"):
+        starters.append({"id": "superseded-decision", "question": f"Why was {old[0].get('rejected')} rejected, and what replaced it?",
+                         "tool": "why_not", "params": {"slug": "managed-commits"}})
+    starters.append({"id": "owners", "question": "Where do the declared CODEOWNERS differ from the people doing the work?",
+                     "tool": "declared_vs_actual", "params": {}})
+    return {"suggestions": starters}
+
+
+@app.delete("/api/memory/{user}")
+def delete_memory(user: str):
+    if not re.fullmatch(r"v_[0-9a-f]{32}", user):
+        raise HTTPException(status_code=400, detail="Only anonymous visitor ids can be deleted.")
+    mark_visitor_deleted(user)
+    try:
+        client = get_client()
+        try:
+            client.connection.execute_command("GRAPH.DELETE", f"mem_{user}")
+        except Exception as exc:
+            message = str(exc).lower()
+            if not any(marker in message for marker in ("not found", "does not exist", "no such graph")):
+                raise
+        result = client.select_graph("mem_team").query(load_query("17b_team_delete_visitor_claims"),
+                                                          {"agent": f"chat:{user}"})
+        removed = int(result.result_set[0][0]) if result.result_set else 0
+        return {"deleted": True, "teamClaimsRemoved": removed}
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 

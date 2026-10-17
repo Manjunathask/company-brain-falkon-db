@@ -10,8 +10,9 @@ import uuid
 from busfactor import tools as graph_tools
 from busfactor.db import get_graph
 from .llm import Step
-from .memory import Memory, entity_keys
+from .memory import Memory, entity_keys, record_episode_if_live
 from .prompt import SYSTEM_PROMPT
+from .followups import build_followups
 
 MAX_TOOL_RESULT_ROWS = 40
 MAX_LIST_ITEMS = 10
@@ -168,7 +169,7 @@ def ask(question: str, user: str, session_id: str | None = None, llm=None, *, me
     messages = [{"role":"user", "content":_first_user_message(question, now.date().isoformat(), recalled,
                                                                   team_recall=team_recall)}]
     evidence = {"nodes": [], "edges": []}
-    trail, entities, usages = [], set(), []
+    trail, entities, usages, successful_calls = [], set(), [], []
     successful_tool_count = 0
     stop_reason = "end"
     rounds = 0
@@ -201,12 +202,14 @@ def ask(question: str, user: str, session_id: str | None = None, llm=None, *, me
                 if "error" in item:
                     tool_result = {"id":item["id"],"content":item["error"],"is_error":True}
                     results.append(tool_result)
-                    trail.append({"tool":item["name"],"params":item["params"],"cypher":"","row_count":0,"ms":item["elapsed"]})
+                    trail.append({"tool":item["name"],"label":graph_tools.TOOL_LABELS.get(item["name"], item["name"]),
+                                  "params":item["params"],"cypher":"","row_count":0,"ms":item["elapsed"]})
                 else:
                     successful_tool_count += 1
                     result = item["result"]
                     rows = result.get("rows", [])
-                    trail.append({"tool":item["name"],"params":item["params"],"cypher":result.get("cypher", ""),
+                    successful_calls.append({"tool":item["name"], "params":item["params"], "rows":rows})
+                    trail.append({"tool":item["name"],"label":graph_tools.TOOL_LABELS.get(item["name"], item["name"]),"params":item["params"],"cypher":result.get("cypher", ""),
                                   "row_count":len(rows),"ms":item["elapsed"]})
                     _merge_graph(evidence, result.get("graph", {}))
                     entities.update(entity_keys(result.get("graph", {})))
@@ -245,7 +248,8 @@ def ask(question: str, user: str, session_id: str | None = None, llm=None, *, me
         answer = "The response stopped at the model's token limit."
     if successful_tool_count == 0:
         answer = "I could not establish an answer because no successful tool returned FalkorDB evidence."
-    memory.record_episode(session_id, question, answer, [item["tool"] for item in trail], sorted(entities))
+    record_episode_if_live(memory, user, session_id, question, answer,
+                           [item["tool"] for item in trail], sorted(entities))
     return {"answer":answer, "tool_calls":trail, "graph":evidence, "entities":sorted(entities),
             "stop_reason":stop_reason, "usage":usages, "memory_recall":recalled,
-            "team_memory":team_recall}
+            "team_memory":team_recall, "followups":build_followups(successful_calls)}

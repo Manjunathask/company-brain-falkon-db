@@ -3,14 +3,31 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 import re
+from threading import RLock
 
 from busfactor.db import get_client, load_query
 
 ENTITY_PREFIXES = {"Person": "person", "Component": "component", "Module": "module", "Decision": "decision"}
+_DELETED_VISITORS: set[str] = set()
+_DELETE_LOCK = RLock()
+
+
+def mark_visitor_deleted(user: str) -> None:
+    with _DELETE_LOCK:
+        _DELETED_VISITORS.add(user)
+
+
+def record_episode_if_live(memory, user: str, *args) -> bool:
+    """Best-effort in-process guard against an in-flight ask recreating deleted history."""
+    with _DELETE_LOCK:
+        if user in _DELETED_VISITORS:
+            return False
+        memory.record_episode(*args)
+        return True
 
 
 def memory_graph_name(user: str) -> str:
-    if not re.fullmatch(r"[A-Za-z0-9_-]{1,39}", user):
+    if not (re.fullmatch(r"[A-Za-z0-9_-]{1,39}", user) or re.fullmatch(r"v_[0-9a-f]{32}", user)):
         raise ValueError("user must be a GitHub login or a short alphanumeric test name")
     return f"mem_{user.lower()}"
 

@@ -18,6 +18,24 @@ DEFAULTS = {
     "driftMinConfidence": "high",
     "includeTestResources": False,
 }
+TOOL_LABELS = {
+    "bus_factor": "Measured bus factor by module",
+    "bus_factor_component": "Measured bus factor by component",
+    "departure_impact": "Checked which components would be exposed",
+    "departure_files": "Checked which files would lose recent editors",
+    "orphaned_decisions": "Checked decisions with no active participant left",
+    "decision_share": "Checked who opened implementation pull requests",
+    "successor": "Found people with overlapping recent work",
+    "simulate_departure": "Simulated the departure on a copy of the graph",
+    "bridges": "Ranked people who connect collaboration groups",
+    "groups": "Measured collaboration groups",
+    "decision_trace": "Traced files through commits, pull requests, and decisions",
+    "why_not": "Traced why a rejected decision was replaced",
+    "drift": "Measured code changes since accepted decisions",
+    "declared_vs_actual": "Compared declared owners with recent contributors",
+    "find_entity": "Found matching graph entities",
+    "remember_correction": "Saved a correction to memory",
+}
 GRAPH_KEY_MAP = {
     "05_bus_factor": {"modules": "module", "people": "topExpert"},
     "05b_bus_factor_component": {"components": "component", "people": "topExpert"},
@@ -127,22 +145,22 @@ def _graph_for(name: str, rows: list[dict], graph=None, main_params: dict | None
         if edge: edges[(edge["source"],edge["target"],edge["type"])] = edge
     return {"nodes": list(nodes.values()), "edges": list(edges.values())}
 
-def _run(name: str, params: dict, *, graph=None) -> dict:
+def _run(name: str, params: dict, *, graph=None, include_graph: bool = True) -> dict:
     graph = graph or get_graph()
     query = load_query(name)
     result = graph.ro_query(query, params)
     columns = [header[1] for header in result.header]
     rows = [dict(zip(columns, row)) for row in result.result_set]
-    return {"tool": {"05_bus_factor":"bus_factor","05b_bus_factor_component":"bus_factor_component","06_departure_impact":"departure_impact","06b_departure_files":"departure_files","07_orphaned_decisions":"orphaned_decisions","07b_decision_share":"decision_share","08_successor":"successor","09_bridges":"bridges","09b_groups":"groups","10_decision_trace":"decision_trace","10b_why_not":"why_not","11_drift":"drift","12_declared_vs_actual":"declared_vs_actual","13_find_entity":"find_entity"}.get(name, name), "params": params, "cypher": query, "rows": rows, "graph": _graph_for(name, rows, graph, params)}
+    return {"tool": {"05_bus_factor":"bus_factor","05b_bus_factor_component":"bus_factor_component","06_departure_impact":"departure_impact","06b_departure_files":"departure_files","07_orphaned_decisions":"orphaned_decisions","07b_decision_share":"decision_share","08_successor":"successor","09_bridges":"bridges","09b_groups":"groups","10_decision_trace":"decision_trace","10b_why_not":"why_not","11_drift":"drift","12_declared_vs_actual":"declared_vs_actual","13_find_entity":"find_entity"}.get(name, name), "params": params, "cypher": query, "rows": rows, "graph": _graph_for(name, rows, graph, params) if include_graph else {"nodes": [], "edges": []}}
 
 def bus_factor(since: int | None = None, minCommits: int | None = None, minTotal: int | None = None) -> dict:
     """Report module bus factors from recent non-bot commit expertise."""
     return _run("05_bus_factor", {**DEFAULTS, "since": since or DEFAULTS["since"], "minCommits": minCommits or DEFAULTS["minCommits"], "minTotal": minTotal or DEFAULTS["minTotal"]})
 
 def bus_factor_component(since: int | None = None, minCommits: int | None = None, minTotal: int | None = None,
-                         includeTestResources: bool = False) -> dict:
+                         includeTestResources: bool = False, *, _include_graph: bool = True) -> dict:
     """Report the number of recent non-bot experts needed to cover half of each Component's commits."""
-    return _run("05b_bus_factor_component", {**DEFAULTS, "since": since or DEFAULTS["since"], "minCommits": minCommits or DEFAULTS["minCommits"], "minTotal": minTotal or DEFAULTS["minTotal"], "includeTestResources": includeTestResources})
+    return _run("05b_bus_factor_component", {**DEFAULTS, "since": since or DEFAULTS["since"], "minCommits": minCommits or DEFAULTS["minCommits"], "minTotal": minTotal or DEFAULTS["minTotal"], "includeTestResources": includeTestResources}, include_graph=_include_graph)
 
 def departure_impact(login: str, since: int | None = None, minCommits: int | None = None,
                      componentPrefix: str = "", includeTestResources: bool = False) -> dict:
