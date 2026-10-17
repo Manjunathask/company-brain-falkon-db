@@ -1,10 +1,10 @@
 ### Files created or changed
 
-- Added [github_api.py](/C:/Users/skman/Documents/Hackathon/src/busfactor/ingest/github_api.py), with cached GraphQL fetching, pagination, parsers, bot detection, and reference extraction.
-- Added [01c_load_prs.cypher](/C:/Users/skman/Documents/Hackathon/queries/01c_load_prs.cypher), [01d_load_issues.cypher](/C:/Users/skman/Documents/Hackathon/queries/01d_load_issues.cypher), and [01e_link_references.cypher](/C:/Users/skman/Documents/Hackathon/queries/01e_link_references.cypher).
-- Updated [load.py](/C:/Users/skman/Documents/Hackathon/src/busfactor/load.py) with `prs`, `issues`, and `references` steps and the requested `all` order.
-- Added GitHub response fixtures and tests in [test_github_api.py](/C:/Users/skman/Documents/Hackathon/tests/test_github_api.py).
-- Added the WP2 entry to [PROGRESS.md](/C:/Users/skman/Documents/Hackathon/docs/PROGRESS.md).
+- Added [github_api.py](../../src/busfactor/ingest/github_api.py), with cached GraphQL fetching, pagination, parsers, bot detection, and reference extraction.
+- Added [01c_load_prs.cypher](../../queries/01c_load_prs.cypher), [01d_load_issues.cypher](../../queries/01d_load_issues.cypher), and [01e_link_references.cypher](../../queries/01e_link_references.cypher).
+- Updated [load.py](../../src/busfactor/load.py) with `prs`, `issues`, and `references` steps and the requested `all` order.
+- Added GitHub response fixtures and tests in [test_github_api.py](../../tests/test_github_api.py).
+- Added the WP2 entry to [PROGRESS.md](../../docs/PROGRESS.md).
 
 The PR query loads PRs and opener/reviewer people, preserving original handles while using normalized logins as keys. The issue query loads RFC issues as separate `Issue` nodes, despite GitHub sharing number space with PRs. The reference query matches existing Issue nodes before linking them, so it only creates links to issues already loaded.
 

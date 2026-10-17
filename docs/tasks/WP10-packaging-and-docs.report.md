@@ -10,9 +10,9 @@ Implemented the WP10 files and snapshot exporter. **The requested live verificat
 
 ### Files changed
 
-- Snapshot and container startup: [.gitignore](</C:/Users/skman/Documents/Hackathon/.gitignore>), [Dockerfile](</C:/Users/skman/Documents/Hackathon/Dockerfile>), [docker-compose.yml](</C:/Users/skman/Documents/Hackathon/docker-compose.yml>), [snapshot.py](</C:/Users/skman/Documents/Hackathon/src/busfactor/snapshot.py>), [bootstrap.py](</C:/Users/skman/Documents/Hackathon/src/busfactor/bootstrap.py>), plus snapshot support in the loader, decision linker, identity loader, and git ingestion.
-- No-key chat response: [app.py](</C:/Users/skman/Documents/Hackathon/src/busfactor/api/app.py>) and [llm.py](</C:/Users/skman/Documents/Hackathon/src/busfactor/agent/llm.py>).
-- Submission materials: [README.md](</C:/Users/skman/Documents/Hackathon/README.md>), [docs/DEMO.md](</C:/Users/skman/Documents/Hackathon/docs/DEMO.md>), [docs/BLOG.md](</C:/Users/skman/Documents/Hackathon/docs/BLOG.md>), [LICENSE](</C:/Users/skman/Documents/Hackathon/LICENSE>), and [docs/PROGRESS.md](</C:/Users/skman/Documents/Hackathon/docs/PROGRESS.md>).
+- Snapshot and container startup: [.gitignore](<(.gitignore>), [Dockerfile](<(Dockerfile>), [docker-compose.yml](<(docker-compose.yml>), [snapshot.py](<(src/busfactor/snapshot.py>), [bootstrap.py](<(src/busfactor/bootstrap.py>), plus snapshot support in the loader, decision linker, identity loader, and git ingestion.
+- No-key chat response: [app.py](<(src/busfactor/api/app.py>) and [llm.py](<(src/busfactor/agent/llm.py>).
+- Submission materials: [README.md](<(README.md>), [docs/DEMO.md](<(docs/DEMO.md>), [docs/BLOG.md](<(docs/BLOG.md>), [LICENSE](<(LICENSE>), and [docs/PROGRESS.md](<(docs/PROGRESS.md>).
 - `data/snapshot/`: seven gzip input files and `manifest.json`.
 
 ### Docker verification for the reviewer

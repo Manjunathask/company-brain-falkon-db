@@ -1,6 +1,6 @@
 ## Files changed
 
-- Added incremental refresh and shared memory: [refresh.py](/C:/Users/skman/Documents/Hackathon/src/busfactor/refresh.py), [team_memory.py](/C:/Users/skman/Documents/Hackathon/src/busfactor/team_memory.py), and updates to agent recall, GitHub PR parsing, and the API.
+- Added incremental refresh and shared memory: [refresh.py](../../src/busfactor/refresh.py), [team_memory.py](../../src/busfactor/team_memory.py), and updates to agent recall, GitHub PR parsing, and the API.
 - Added refresh and team memory queries; updated PR loading and changed-since queries.
 - Added the Ask-tab team memory list, updated README memory guidance, and documented the queries and progress.
 - Added fixture refresh coverage, team memory integration coverage, and an `/api/team` contract test.

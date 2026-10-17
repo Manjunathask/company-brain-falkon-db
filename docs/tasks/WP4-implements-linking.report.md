@@ -1,9 +1,9 @@
 ## Changed files
 
-- Added [decision_keywords.py](/C:/Users/skman/Documents/Hackathon/src/busfactor/decision_keywords.py) and [link_decisions.py](/C:/Users/skman/Documents/Hackathon/src/busfactor/link_decisions.py).
-- Added [04d issue-ref](/C:/Users/skman/Documents/Hackathon/queries/04d_derive_implements_issue_ref.cypher), [04e rfc-doc](/C:/Users/skman/Documents/Hackathon/queries/04e_derive_implements_rfc_doc.cypher), and [04f title-keyword](/C:/Users/skman/Documents/Hackathon/queries/04f_load_implements_keyword.cypher).
-- Updated [04b participation](/C:/Users/skman/Documents/Hackathon/queries/04b_derive_participated_pr.cypher), [04c participation](/C:/Users/skman/Documents/Hackathon/queries/04c_derive_participated_issue.cypher), [README.md](/C:/Users/skman/Documents/Hackathon/README.md), and [PROGRESS.md](/C:/Users/skman/Documents/Hackathon/docs/PROGRESS.md).
-- Added keyword and query-contract coverage in [test_decision_keywords.py](/C:/Users/skman/Documents/Hackathon/tests/test_decision_keywords.py), [test_derive_queries.py](/C:/Users/skman/Documents/Hackathon/tests/test_derive_queries.py), and [test_graph_integration.py](/C:/Users/skman/Documents/Hackathon/tests/test_graph_integration.py).
+- Added [decision_keywords.py](../../src/busfactor/decision_keywords.py) and [link_decisions.py](../../src/busfactor/link_decisions.py).
+- Added [04d issue-ref](../../queries/04d_derive_implements_issue_ref.cypher), [04e rfc-doc](../../queries/04e_derive_implements_rfc_doc.cypher), and [04f title-keyword](../../queries/04f_load_implements_keyword.cypher).
+- Updated [04b participation](../../queries/04b_derive_participated_pr.cypher), [04c participation](../../queries/04c_derive_participated_issue.cypher), [README.md](../../README.md), and [PROGRESS.md](../../docs/PROGRESS.md).
+- Added keyword and query-contract coverage in [test_decision_keywords.py](../../tests/test_decision_keywords.py), [test_derive_queries.py](../../tests/test_derive_queries.py), and [test_graph_integration.py](../../tests/test_graph_integration.py).
 
 `PARTICIPATED_IN` includes low-confidence title matches and copies their confidence so later queries can filter them. Issue participation is marked high confidence. The README documents the order: load all data → `link_decisions` → `derive`.
 

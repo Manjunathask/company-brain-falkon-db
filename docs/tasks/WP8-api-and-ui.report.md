@@ -1,6 +1,6 @@
 Implemented WP8 without committing.
 
-**Files changed:** [app.py](/C:/Users/skman/Documents/Hackathon/src/busfactor/api/app.py), [__main__.py](/C:/Users/skman/Documents/Hackathon/src/busfactor/api/__main__.py), [index.html](/C:/Users/skman/Documents/Hackathon/web/index.html), [app.js](/C:/Users/skman/Documents/Hackathon/web/app.js), [style.css](/C:/Users/skman/Documents/Hackathon/web/style.css), [test_api_integration.py](/C:/Users/skman/Documents/Hackathon/tests/test_api_integration.py), [conftest.py](/C:/Users/skman/Documents/Hackathon/tests/conftest.py), [loop.py](/C:/Users/skman/Documents/Hackathon/src/busfactor/agent/loop.py), [graphjson.py](/C:/Users/skman/Documents/Hackathon/src/busfactor/graphjson.py), [README.md](/C:/Users/skman/Documents/Hackathon/README.md), and [PROGRESS.md](/C:/Users/skman/Documents/Hackathon/docs/PROGRESS.md).
+**Files changed:** [app.py](../../src/busfactor/api/app.py), [__main__.py](../../src/busfactor/api/__main__.py), [index.html](../../web/index.html), [app.js](../../web/app.js), [style.css](../../web/style.css), [test_api_integration.py](../../tests/test_api_integration.py), [conftest.py](../../tests/conftest.py), [loop.py](../../src/busfactor/agent/loop.py), [graphjson.py](../../src/busfactor/graphjson.py), [README.md](../../README.md), and [PROGRESS.md](../../docs/PROGRESS.md).
 
 **Verification:** `50 passed in 34.41s`. The app served its static page and JavaScript. No live LLM call was made.
 

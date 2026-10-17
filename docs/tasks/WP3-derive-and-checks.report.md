@@ -2,9 +2,9 @@ Implemented WP3.
 
 ### Files created or changed
 
-- Added derive queries: [03_derive_knows.cypher](C:/Users/skman/Documents/Hackathon/queries/03_derive_knows.cypher), [03b_derive_last_seen.cypher](C:/Users/skman/Documents/Hackathon/queries/03b_derive_last_seen.cypher), [04_derive_works_with.cypher](C:/Users/skman/Documents/Hackathon/queries/04_derive_works_with.cypher), [04b_derive_participated_pr.cypher](C:/Users/skman/Documents/Hackathon/queries/04b_derive_participated_pr.cypher), [04c_derive_participated_issue.cypher](C:/Users/skman/Documents/Hackathon/queries/04c_derive_participated_issue.cypher)
-- Added [derive.py](C:/Users/skman/Documents/Hackathon/src/busfactor/derive.py), [check_assumptions.py](C:/Users/skman/Documents/Hackathon/scripts/check_assumptions.py), and [test_derive_queries.py](C:/Users/skman/Documents/Hackathon/tests/test_derive_queries.py).
-- Appended the WP3 entry to [PROGRESS.md](C:/Users/skman/Documents/Hackathon/docs/PROGRESS.md).
+- Added derive queries: [03_derive_knows.cypher](../../queries/03_derive_knows.cypher), [03b_derive_last_seen.cypher](../../queries/03b_derive_last_seen.cypher), [04_derive_works_with.cypher](../../queries/04_derive_works_with.cypher), [04b_derive_participated_pr.cypher](../../queries/04b_derive_participated_pr.cypher), [04c_derive_participated_issue.cypher](../../queries/04c_derive_participated_issue.cypher)
+- Added [derive.py](../../src/busfactor/derive.py), [check_assumptions.py](../../scripts/check_assumptions.py), and [test_derive_queries.py](../../tests/test_derive_queries.py).
+- Appended the WP3 entry to [PROGRESS.md](../../docs/PROGRESS.md).
 
 The derive CLI uses the requested defaults and flags, reports per-query relationship creation counts and runtimes, and prints the sanity summary. Derived edges and activity labels are refreshed on reruns, and bots are filtered or cleaned from those derived relationships.
 

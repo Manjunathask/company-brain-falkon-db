@@ -2,10 +2,10 @@ Implemented WP7. No live LLM call was made, and I did not create a commit.
 
 **Files changed**
 
-- Added the agent interface, Anthropic and scripted adapters, prompt, loop, memory layer, and CLI under [src/busfactor/agent](/C:/Users/skman/Documents/Hackathon/src/busfactor/agent).
-- Added memory queries [14_mem_record_episode.cypher](/C:/Users/skman/Documents/Hackathon/queries/14_mem_record_episode.cypher), [14b_mem_store_correction.cypher](/C:/Users/skman/Documents/Hackathon/queries/14b_mem_store_correction.cypher), [14c_mem_recall.cypher](/C:/Users/skman/Documents/Hackathon/queries/14c_mem_recall.cypher), and [14d_changed_since.cypher](/C:/Users/skman/Documents/Hackathon/queries/14d_changed_since.cypher).
-- Added unit and FalkorDB integration coverage in [test_agent.py](/C:/Users/skman/Documents/Hackathon/tests/test_agent.py) and [test_memory_integration.py](/C:/Users/skman/Documents/Hackathon/tests/test_memory_integration.py).
-- Updated [README.md](/C:/Users/skman/Documents/Hackathon/README.md), [docs/QUERIES.md](/C:/Users/skman/Documents/Hackathon/docs/QUERIES.md), and [docs/PROGRESS.md](/C:/Users/skman/Documents/Hackathon/docs/PROGRESS.md).
+- Added the agent interface, Anthropic and scripted adapters, prompt, loop, memory layer, and CLI under [src/busfactor/agent](../../src/busfactor/agent).
+- Added memory queries [14_mem_record_episode.cypher](../../queries/14_mem_record_episode.cypher), [14b_mem_store_correction.cypher](../../queries/14b_mem_store_correction.cypher), [14c_mem_recall.cypher](../../queries/14c_mem_recall.cypher), and [14d_changed_since.cypher](../../queries/14d_changed_since.cypher).
+- Added unit and FalkorDB integration coverage in [test_agent.py](../../tests/test_agent.py) and [test_memory_integration.py](../../tests/test_memory_integration.py).
+- Updated [README.md](../../README.md), [docs/QUERIES.md](../../docs/QUERIES.md), and [docs/PROGRESS.md](../../docs/PROGRESS.md).
 
 The memory queries record a session episode and its touched entity keys, store user corrections with provenance, and recall corrections and recent questions. The changed-since query traverses `delta` for commits and PRs after an entity’s last-asked timestamp; Python joins memory and Delta graphs by `Entity.key`.
 

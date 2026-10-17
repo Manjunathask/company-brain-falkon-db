@@ -1,6 +1,6 @@
 ## WP6 complete
 
-Added the typed tool registry in [tools.py](/C:/Users/skman/Documents/Hackathon/src/busfactor/tools.py), the copy-based simulator in [whatif.py](/C:/Users/skman/Documents/Hackathon/src/busfactor/whatif.py), the WP6 result and evidence queries, integration coverage, [QUERIES.md](/C:/Users/skman/Documents/Hackathon/docs/QUERIES.md), and a progress entry. The guide covers all 44 query files. No commit was made.
+Added the typed tool registry in [tools.py](../../src/busfactor/tools.py), the copy-based simulator in [whatif.py](../../src/busfactor/whatif.py), the WP6 result and evidence queries, integration coverage, [QUERIES.md](../../docs/QUERIES.md), and a progress entry. The guide covers all 44 query files. No commit was made.
 
 **Tests:** `36 passed`.
 

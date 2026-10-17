@@ -37,9 +37,9 @@ For `huan233usc`, the largest orphan groups were `kernel-spark/spark` (20 files)
 
 ## Changed files
 
-- **Loader and derive:** [components.py](/C:/Users/skman/Documents/Hackathon/src/busfactor/ingest/components.py), [load.py](/C:/Users/skman/Documents/Hackathon/src/busfactor/load.py), [derive.py](/C:/Users/skman/Documents/Hackathon/src/busfactor/derive.py)
+- **Loader and derive:** [components.py](../../src/busfactor/ingest/components.py), [load.py](../../src/busfactor/load.py), [derive.py](../../src/busfactor/derive.py)
 - **Queries:** `00_indexes`, `01_load_commits`, `02_load_decisions`, `03c_derive_knows_component`, `05_bus_factor`, `05b_bus_factor_component`, `06_departure_impact`, `06b_departure_files`
-- **Reviewer runner:** [try_queries.py](/C:/Users/skman/Documents/Hackathon/scripts/try_queries.py)
-- **Tests and docs:** [test_components.py](/C:/Users/skman/Documents/Hackathon/tests/test_components.py), [test_graph_integration.py](/C:/Users/skman/Documents/Hackathon/tests/test_graph_integration.py), `tests/test_derive_queries.py`, [README.md](/C:/Users/skman/Documents/Hackathon/README.md), [PROGRESS.md](/C:/Users/skman/Documents/Hackathon/docs/PROGRESS.md)
+- **Reviewer runner:** [try_queries.py](../../scripts/try_queries.py)
+- **Tests and docs:** [test_components.py](../../tests/test_components.py), [test_graph_integration.py](../../tests/test_graph_integration.py), `tests/test_derive_queries.py`, [README.md](../../README.md), [PROGRESS.md](../../docs/PROGRESS.md)
 
 No commit was made.
