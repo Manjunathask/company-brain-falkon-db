@@ -355,28 +355,6 @@ function areaCard(row, login, name) {
   draft.type = "button";
   draft.onclick = () => openHandover(card, login, name, row.component);
   actions.append(draft);
-  const successors = el("button", "secondary", "Show successors");
-  successors.type = "button";
-  successors.onclick = async () => {
-    successors.disabled = true;
-    successors.textContent = "Checking…";
-    try {
-      const data = await api("/api/tools/successor", {
-        method: "POST",
-        body: JSON.stringify({ params: { login, component: row.component } }),
-      });
-      const text = data.rows?.length
-        ? `Suggested successor: ${data.rows.map(item =>
-          `${item.successor} (${item.sharedFiles}/${item.outOf} shared files)`,
-        ).join(", ")}`
-        : "No successor found for this area.";
-      successors.replaceWith(el("p", "successor-result", text));
-    } catch (_) {
-      successors.disabled = false;
-      successors.textContent = "Retry successors";
-    }
-  };
-  actions.append(successors);
   askAction(actions, `Who could take over ${row.component} if ${name} left?`);
   card.append(actions);
   return card;
