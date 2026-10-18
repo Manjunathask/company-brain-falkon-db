@@ -49,7 +49,8 @@ makes about 1.3 million file maps. A container limited to 100 MB would be killed
 
 Keep each change small and readable; no new framework.
 
-1. **Lean commit load.** In `queries/01_load_commits.cypher` stop carrying `c` after the file unwind:
+1. **Lean commit load.** Done by Claude Code on 18 Oct (peak 681 MB to 51 MB; counts unchanged; see PROGRESS).
+   In `queries/01_load_commits.cypher` stop carrying `c` after the file unwind:
    `WITH k, c` becomes `WITH k, c.files AS files` + `UNWIND files AS f`, and both `WITH k, c, f, fl` become
    `WITH k, f, fl`. Update the header comment to say why. Re-run `load all --from-snapshot`, `link_decisions`
    and `derive` against a throwaway graph and confirm the counts in the table above.

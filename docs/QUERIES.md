@@ -216,7 +216,7 @@ These indexes support stable lookups by each node type key. The two full-text in
 
 **Parameters:** $rows is a batch of commit maps with author, authorEmail, authorHandle, authorBot, authorName, files, and commit fields; each file has module and component.
 
-The loader merges people, commits, files, modules, and components from batched rows. Stable keys make reruns safe, and each commit records the files it touched.
+The loader merges people, commits, files, modules, and components from batched rows. Stable keys make reruns safe, and each commit records the files it touched. After the file unwind, rows keep only the commit node, the file map and the file node: carrying the whole commit row copied its file list onto every file row, and the snapshot load peaked at 681 MB instead of 51 MB.
 
 ## `01b_link_part_of.cypher`
 
