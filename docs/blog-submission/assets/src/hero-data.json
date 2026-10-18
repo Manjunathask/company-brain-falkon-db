@@ -1,0 +1,564 @@
+{
+ "checked_at": "2026-10-18T04:06:34.440235+00:00",
+ "query": "queries/05b_bus_factor_component.cypher",
+ "params": {
+  "since": "365 days before checked_at",
+  "minCommits": 2,
+  "minTotal": 5,
+  "includeTestResources": false
+ },
+ "areas": [
+  {
+   "component": "kernel/kernel-api/checksum",
+   "busFactor": 1,
+   "topExpert": "jasonschen3",
+   "topShare": 1.0,
+   "people": 1,
+   "total": 6.0
+  },
+  {
+   "component": "spark/deletionvectors",
+   "busFactor": 1,
+   "topExpert": "prakharjain09",
+   "topShare": 1.0,
+   "people": 1,
+   "total": 6.0
+  },
+  {
+   "component": "spark/v2/tablemanager",
+   "busFactor": 1,
+   "topExpert": "seewishnew",
+   "topShare": 1.0,
+   "people": 1,
+   "total": 7.0
+  },
+  {
+   "component": "iceberg/serverSidePlanning",
+   "busFactor": 1,
+   "topExpert": "murali-db",
+   "topShare": 0.905,
+   "people": 2,
+   "total": 21.0
+  },
+  {
+   "component": "spark/serverSidePlanning",
+   "busFactor": 1,
+   "topExpert": "murali-db",
+   "topShare": 0.9,
+   "people": 2,
+   "total": 20.0
+  },
+  {
+   "component": "iceberg/shadedForDelta",
+   "busFactor": 1,
+   "topExpert": "murali-db",
+   "topShare": 0.818,
+   "people": 2,
+   "total": 11.0
+  },
+  {
+   "component": "examples/scala",
+   "busFactor": 1,
+   "topExpert": "timothyw553",
+   "topShare": 0.714,
+   "people": 2,
+   "total": 7.0
+  },
+  {
+   "component": "iceberg/uniform",
+   "busFactor": 1,
+   "topExpert": "chengjix",
+   "topShare": 0.692,
+   "people": 3,
+   "total": 13.0
+  },
+  {
+   "component": "kernel/kernel-api/checkpoints",
+   "busFactor": 1,
+   "topExpert": "jasonschen3",
+   "topShare": 0.667,
+   "people": 2,
+   "total": 6.0
+  },
+  {
+   "component": "kernel/kernel-defaults/catalogManaged",
+   "busFactor": 1,
+   "topExpert": "allisonport-db",
+   "topShare": 0.667,
+   "people": 2,
+   "total": 6.0
+  },
+  {
+   "component": "spark-connect/client/connect",
+   "busFactor": 1,
+   "topExpert": "longvu-db",
+   "topShare": 0.667,
+   "people": 2,
+   "total": 6.0
+  },
+  {
+   "component": "spark-shared-tests/tables",
+   "busFactor": 1,
+   "topExpert": "longvu-db",
+   "topShare": 0.667,
+   "people": 2,
+   "total": 6.0
+  },
+  {
+   "component": "spark-unified/internal",
+   "busFactor": 1,
+   "topExpert": "murali-db",
+   "topShare": 0.667,
+   "people": 2,
+   "total": 6.0
+  },
+  {
+   "component": "protocol_rfcs/(files)",
+   "busFactor": 1,
+   "topExpert": "anoopj",
+   "topShare": 0.647,
+   "people": 4,
+   "total": 17.0
+  },
+  {
+   "component": "kernel/kernel-api/commitrange",
+   "busFactor": 1,
+   "topExpert": "allisonport-db",
+   "topShare": 0.6,
+   "people": 2,
+   "total": 5.0
+  },
+  {
+   "component": "kernel/kernel-api/icebergcompat",
+   "busFactor": 1,
+   "topExpert": "scottsand-db",
+   "topShare": 0.6,
+   "people": 2,
+   "total": 5.0
+  },
+  {
+   "component": "kernel/kernel-api/replay",
+   "busFactor": 1,
+   "topExpert": "harperjiang",
+   "topShare": 0.6,
+   "people": 2,
+   "total": 5.0
+  },
+  {
+   "component": "spark-unified/(core)",
+   "busFactor": 1,
+   "topExpert": "murali-db",
+   "topShare": 0.6,
+   "people": 2,
+   "total": 5.0
+  },
+  {
+   "component": "spark/skipping",
+   "busFactor": 1,
+   "topExpert": "itsbilal",
+   "topShare": 0.6,
+   "people": 2,
+   "total": 5.0
+  },
+  {
+   "component": "flink/sink",
+   "busFactor": 1,
+   "topExpert": "harperjiang",
+   "topShare": 0.571,
+   "people": 3,
+   "total": 21.0
+  },
+  {
+   "component": "kernel/kernel-api/skipping",
+   "busFactor": 1,
+   "topExpert": "ilicmarkodb",
+   "topShare": 0.571,
+   "people": 2,
+   "total": 7.0
+  },
+  {
+   "component": "flink/(core)",
+   "busFactor": 1,
+   "topExpert": "harperjiang",
+   "topShare": 0.556,
+   "people": 2,
+   "total": 9.0
+  },
+  {
+   "component": "spark/hooks",
+   "busFactor": 1,
+   "topExpert": "prakharjain09",
+   "topShare": 0.556,
+   "people": 2,
+   "total": 9.0
+  },
+  {
+   "component": "flink/table",
+   "busFactor": 1,
+   "topExpert": "harperjiang",
+   "topShare": 0.526,
+   "people": 3,
+   "total": 19.0
+  },
+  {
+   "component": "kernel/kernel-api/types",
+   "busFactor": 1,
+   "topExpert": "ilicmarkodb",
+   "topShare": 0.5,
+   "people": 2,
+   "total": 6.0
+  },
+  {
+   "component": "sharing/(core)",
+   "busFactor": 2,
+   "topExpert": "littlegrasscao",
+   "topShare": 0.484,
+   "people": 6,
+   "total": 31.0
+  },
+  {
+   "component": "spark/v2/v2",
+   "busFactor": 2,
+   "topExpert": "haosun1993",
+   "topShare": 0.471,
+   "people": 3,
+   "total": 17.0
+  },
+  {
+   "component": "spark-unified/test",
+   "busFactor": 2,
+   "topExpert": "porridgeswim",
+   "topShare": 0.456,
+   "people": 8,
+   "total": 68.0
+  },
+  {
+   "component": "spark/typewidening",
+   "busFactor": 2,
+   "topExpert": "murali-db",
+   "topShare": 0.455,
+   "people": 3,
+   "total": 11.0
+  },
+  {
+   "component": "iceberg/icebergShaded",
+   "busFactor": 2,
+   "topExpert": "chengjix",
+   "topShare": 0.448,
+   "people": 5,
+   "total": 29.0
+  },
+  {
+   "component": "spark/generatedsuites",
+   "busFactor": 2,
+   "topExpert": "geraintcjy",
+   "topShare": 0.444,
+   "people": 3,
+   "total": 9.0
+  },
+  {
+   "component": "spark/spark-4.2",
+   "busFactor": 2,
+   "topExpert": "uros-db",
+   "topShare": 0.444,
+   "people": 3,
+   "total": 9.0
+  },
+  {
+   "component": "spark-unified/v2",
+   "busFactor": 2,
+   "topExpert": "haosun1993",
+   "topShare": 0.435,
+   "people": 4,
+   "total": 23.0
+  },
+  {
+   "component": "kernel/kernel-defaults/data",
+   "busFactor": 2,
+   "topExpert": "milastdbx",
+   "topShare": 0.429,
+   "people": 3,
+   "total": 7.0
+  },
+  {
+   "component": "kernel/kernel-defaults/engine",
+   "busFactor": 2,
+   "topExpert": "scottsand-db",
+   "topShare": 0.429,
+   "people": 3,
+   "total": 7.0
+  },
+  {
+   "component": "spark-unified/spark-4.2",
+   "busFactor": 2,
+   "topExpert": "murali-db",
+   "topShare": 0.417,
+   "people": 3,
+   "total": 12.0
+  },
+  {
+   "component": "kernel/unitycatalog/unitycatalog",
+   "busFactor": 2,
+   "topExpert": "timothyw553",
+   "topShare": 0.4,
+   "people": 4,
+   "total": 15.0
+  },
+  {
+   "component": "project/scripts",
+   "busFactor": 2,
+   "topExpert": "yili-db",
+   "topShare": 0.385,
+   "people": 5,
+   "total": 26.0
+  },
+  {
+   "component": "spark/v2/snapshot",
+   "busFactor": 2,
+   "topExpert": "seewishnew",
+   "topShare": 0.385,
+   "people": 4,
+   "total": 13.0
+  },
+  {
+   "component": "spark/unitycatalog/(core)",
+   "busFactor": 2,
+   "topExpert": "yili-db",
+   "topShare": 0.357,
+   "people": 9,
+   "total": 56.0
+  },
+  {
+   "component": "spark/amt",
+   "busFactor": 2,
+   "topExpert": "prakharjain09",
+   "topShare": 0.336,
+   "people": 7,
+   "total": 107.0
+  },
+  {
+   "component": "kernel/kernel-api/actions",
+   "busFactor": 2,
+   "topExpert": "0x5eba",
+   "topShare": 0.333,
+   "people": 3,
+   "total": 6.0
+  },
+  {
+   "component": "spark/spark-4.0",
+   "busFactor": 2,
+   "topExpert": "harperjiang",
+   "topShare": 0.333,
+   "people": 3,
+   "total": 6.0
+  },
+  {
+   "component": "spark/v2/catalog",
+   "busFactor": 2,
+   "topExpert": "murali-db",
+   "topShare": 0.333,
+   "people": 3,
+   "total": 15.0
+  },
+  {
+   "component": "spark/v2/write",
+   "busFactor": 2,
+   "topExpert": "murali-db",
+   "topShare": 0.333,
+   "people": 7,
+   "total": 24.0
+  },
+  {
+   "component": "storage/commit",
+   "busFactor": 2,
+   "topExpert": "yili-db",
+   "topShare": 0.323,
+   "people": 5,
+   "total": 31.0
+  },
+  {
+   "component": "spark/actions",
+   "busFactor": 2,
+   "topExpert": "philplato",
+   "topShare": 0.262,
+   "people": 6,
+   "total": 42.0
+  },
+  {
+   "component": "python/delta",
+   "busFactor": 2,
+   "topExpert": "johanl-db",
+   "topShare": 0.25,
+   "people": 4,
+   "total": 8.0
+  },
+  {
+   "component": "spark/coordinatedcommits",
+   "busFactor": 3,
+   "topExpert": "timothyw553",
+   "topShare": 0.324,
+   "people": 8,
+   "total": 37.0
+  },
+  {
+   "component": "spark/schema",
+   "busFactor": 3,
+   "topExpert": "omar-saleh",
+   "topShare": 0.316,
+   "people": 6,
+   "total": 19.0
+  },
+  {
+   "component": "spark/v2/read",
+   "busFactor": 3,
+   "topExpert": "murali-db",
+   "topShare": 0.289,
+   "people": 7,
+   "total": 45.0
+  },
+  {
+   "component": "spark/catalog",
+   "busFactor": 3,
+   "topExpert": "yili-db",
+   "topShare": 0.277,
+   "people": 11,
+   "total": 47.0
+  },
+  {
+   "component": "spark-unified/catalog",
+   "busFactor": 3,
+   "topExpert": "murali-db",
+   "topShare": 0.273,
+   "people": 5,
+   "total": 11.0
+  },
+  {
+   "component": "spark/files",
+   "busFactor": 3,
+   "topExpert": "divjotarora",
+   "topShare": 0.273,
+   "people": 5,
+   "total": 11.0
+  },
+  {
+   "component": "spark/stats",
+   "busFactor": 3,
+   "topExpert": "ctring",
+   "topShare": 0.267,
+   "people": 8,
+   "total": 30.0
+  },
+  {
+   "component": "kernel/kernel-api/util",
+   "busFactor": 3,
+   "topExpert": "milastdbx",
+   "topShare": 0.25,
+   "people": 6,
+   "total": 16.0
+  },
+  {
+   "component": "spark/delta-suite-generator/suitegenerator",
+   "busFactor": 3,
+   "topExpert": "geraintcjy",
+   "topShare": 0.238,
+   "people": 6,
+   "total": 21.0
+  },
+  {
+   "component": "spark/util",
+   "busFactor": 3,
+   "topExpert": "haosun1993",
+   "topShare": 0.237,
+   "people": 11,
+   "total": 38.0
+  },
+  {
+   "component": "spark/v2/(core)",
+   "busFactor": 3,
+   "topExpert": "murali-db",
+   "topShare": 0.227,
+   "people": 6,
+   "total": 22.0
+  },
+  {
+   "component": "spark/error",
+   "busFactor": 4,
+   "topExpert": "ala",
+   "topShare": 0.26,
+   "people": 14,
+   "total": 50.0
+  },
+  {
+   "component": "kernel/kernel-api/(core)",
+   "busFactor": 4,
+   "topExpert": "allisonport-db",
+   "topShare": 0.195,
+   "people": 12,
+   "total": 41.0
+  },
+  {
+   "component": "kernel/kernel-defaults/(core)",
+   "busFactor": 4,
+   "topExpert": "jasonschen3",
+   "topShare": 0.195,
+   "people": 10,
+   "total": 41.0
+  },
+  {
+   "component": ".github/workflows",
+   "busFactor": 4,
+   "topExpert": "timothyw553",
+   "topShare": 0.184,
+   "people": 10,
+   "total": 38.0
+  },
+  {
+   "component": "project/(files)",
+   "busFactor": 4,
+   "topExpert": "openinx",
+   "topShare": 0.176,
+   "people": 9,
+   "total": 34.0
+  },
+  {
+   "component": "spark/v2/utils",
+   "busFactor": 4,
+   "topExpert": "porridgeswim",
+   "topShare": 0.155,
+   "people": 12,
+   "total": 58.0
+  },
+  {
+   "component": "spark/commands",
+   "busFactor": 6,
+   "topExpert": "longvu-db",
+   "topShare": 0.133,
+   "people": 21,
+   "total": 75.0
+  },
+  {
+   "component": "root",
+   "busFactor": 6,
+   "topExpert": "timothyw553",
+   "topShare": 0.13,
+   "people": 24,
+   "total": 115.0
+  },
+  {
+   "component": "spark/sources",
+   "busFactor": 9,
+   "topExpert": "porridgeswim",
+   "topShare": 0.113,
+   "people": 32,
+   "total": 141.0
+  },
+  {
+   "component": "spark/(core)",
+   "busFactor": 13,
+   "topExpert": "porridgeswim",
+   "topShare": 0.072,
+   "people": 60,
+   "total": 458.0
+  }
+ ]
+}

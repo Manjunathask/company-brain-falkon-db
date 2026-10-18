@@ -1,0 +1,116 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 860" width="1200" height="860" role="img" aria-labelledby="t d">
+  <title id="t">Why the handover packet suggests scottsand-db for flink/inttest</title>
+  <desc id="d">Hao Jiang (harperjiang) made 3 recent commits in flink/inttest, where no other recent author has 2 or more.
+  Those commits belong to three pull requests: 6188 (7 files in the area), 6192 (3 files) and 6933 (1 file). Pull
+  request 6188 was reviewed by huan233usc, tdas and scottsand-db; 6192 by scottsand-db; 6933 by kaiqijinwow and
+  timothyw553. Pull request 6188's title matches the Catalog-Managed Tables decision, a low-confidence link.
+  scottsand-db and tdas took part in that decision through explicit links. The suggested successor is scottsand-db,
+  who reviewed 2 of the 3 pull requests, has no commits there yet, and took part in Catalog-Managed Tables. Candidates
+  are ordered by a plain sort, not a weighted score.</desc>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap');
+    .bg { fill: #FBFAF7; }
+    .h1 { font: 700 31px Inter, 'Segoe UI', sans-serif; fill: #1B1F29; letter-spacing: -.01em; }
+    .sub { font: 400 21px Inter, 'Segoe UI', sans-serif; fill: #5A6170; }
+    .band { font: 600 15px Inter, 'Segoe UI', sans-serif; letter-spacing: .12em; fill: #6B7280; }
+    .card { fill: #FFFFFF; stroke: #DAD5CB; stroke-width: 1.5; }
+    .type { font: 600 14px Inter, 'Segoe UI', sans-serif; letter-spacing: .12em; }
+    .m { font: 600 20px 'JetBrains Mono', Consolas, monospace; fill: #1B1F29; }
+    .v { font: 600 21px Inter, 'Segoe UI', sans-serif; fill: #1B1F29; }
+    .d { font: 400 17px Inter, 'Segoe UI', sans-serif; fill: #4A5160; }
+    .rv { stroke: #0E7C7B; stroke-width: 2.2; fill: none; stroke-dasharray: 2 6; stroke-linecap: round; }
+    .au { stroke: #D2491A; stroke-width: 2.2; fill: none; }
+    .guess { stroke: #A23B72; stroke-width: 2.2; stroke-dasharray: 7 6; fill: none; }
+    .chip { font: 600 14px Inter, 'Segoe UI', sans-serif; fill: #A23B72; }
+    .elabel { font: 600 14px 'JetBrains Mono', Consolas, monospace; letter-spacing: .02em; }
+    .rt { font: 600 15px Inter, 'Segoe UI', sans-serif; letter-spacing: .12em; fill: #23794A; }
+    .rv1 { font: 400 20px Inter, 'Segoe UI', sans-serif; fill: #1B1F29; }
+    .rv2 { font: 400 18px Inter, 'Segoe UI', sans-serif; fill: #3A4150; }
+    .src { font: 400 15px 'JetBrains Mono', Consolas, monospace; fill: #8A8F98; }
+  </style>
+  <rect class="bg" width="1200" height="860"/>
+  <text class="h1" x="48" y="58">Why the packet suggests scottsand-db</text>
+  <text class="sub" x="48" y="94">Every phrase in the suggestion is a count over these relationships.</text>
+
+  <text class="band" x="48" y="136">LEAVING</text>
+  <text class="band" x="330" y="136">THEIR PRs IN THIS AREA</text>
+  <text class="band" x="760" y="136">WHO REVIEWED THEM</text>
+
+  <!-- Leaving person and area -->
+  <rect class="card" x="48" y="290" width="222" height="112" rx="12" stroke="#D2491A" stroke-width="2.5"/>
+  <text class="type" x="70" y="320" fill="#D2491A">PERSON</text>
+  <text class="m" x="70" y="354">harperjiang</text>
+  <text class="d" x="70" y="384">Hao Jiang</text>
+  <rect class="card" x="48" y="426" width="222" height="144" rx="12"/>
+  <text class="type" x="70" y="456" fill="#B8650F">CODE AREA</text>
+  <text class="m" x="70" y="490">flink/inttest</text>
+  <text class="d" x="70" y="520">3 recent commits</text>
+  <text class="d" x="70" y="546">no other recent author</text>
+
+  <!-- Decision -->
+  <rect class="card" x="330" y="150" width="300" height="100" rx="12"/>
+  <rect x="330" y="150" width="7" height="100" rx="3" fill="#A23B72"/>
+  <text class="type" x="352" y="178" fill="#A23B72">DESIGN DECISION · ACCEPTED</text>
+  <text class="v" x="352" y="210">Catalog-Managed Tables</text>
+  <text class="d" x="352" y="236">replaces Managed Commits</text>
+  <line class="guess" x1="480" y1="290" x2="480" y2="254"/>
+  <text class="elabel" x="492" y="278" fill="#A23B72">title match</text>
+
+  <!-- PRs -->
+  <rect class="card" x="330" y="290" width="300" height="80" rx="12"/>
+  <rect x="330" y="290" width="7" height="80" rx="3" fill="#6B4FB0"/>
+  <text class="m" x="352" y="322">#6188</text><text class="d" x="436" y="322">7 files here</text>
+  <text class="d" x="352" y="352">Catalog-Managed Table with UC</text>
+  <rect class="card" x="330" y="390" width="300" height="80" rx="12"/>
+  <rect x="330" y="390" width="7" height="80" rx="3" fill="#6B4FB0"/>
+  <text class="m" x="352" y="422">#6192</text><text class="d" x="436" y="422">3 files here</text>
+  <text class="d" x="352" y="452">Sink SQL API support</text>
+  <rect class="card" x="330" y="490" width="300" height="80" rx="12"/>
+  <rect x="330" y="490" width="7" height="80" rx="3" fill="#6B4FB0"/>
+  <text class="m" x="352" y="522">#6933</text><text class="d" x="436" y="522">1 file here</text>
+  <text class="d" x="352" y="552">Upsert step 3: write.mode options</text>
+
+  <!-- harperjiang -> PRs -->
+  <path class="au" d="M270,346 C300,346 300,330 326,330"/>
+  <path class="au" d="M270,346 C300,346 300,430 326,430"/>
+  <path class="au" d="M270,346 C300,346 300,530 326,530"/>
+
+  <!-- PR -> reviewer -->
+  <path class="rv" d="M630,330 C690,330 700,187 756,187"/>
+  <path class="rv" d="M630,330 C690,330 700,271 756,271"/>
+  <path class="rv" d="M630,330 C690,330 700,350 756,350"/>
+  <path class="rv" d="M630,430 C690,430 700,378 756,378"/>
+  <path class="rv" d="M630,530 C690,530 700,459 756,459"/>
+  <path class="rv" d="M630,530 C690,530 700,543 756,543"/>
+  <text class="elabel" x="694" y="164" fill="#0E7C7B" text-anchor="middle">REVIEWED</text>
+
+  <!-- Reviewers -->
+  <rect class="card" x="760" y="150" width="392" height="74" rx="12"/>
+  <text class="m" x="782" y="182">huan233usc</text>
+  <text class="d" x="782" y="208">reviewed 1 of the 3 PRs</text>
+  <rect class="card" x="760" y="234" width="392" height="74" rx="12"/>
+  <text class="m" x="782" y="266">tdas</text>
+  <text class="d" x="782" y="292">reviewed 1 of the 3 PRs</text>
+  <rect x="966" y="252" width="168" height="26" rx="13" fill="#F6E4EE"/>
+  <text class="chip" x="1050" y="270" text-anchor="middle">took part in decision</text>
+  <rect class="card" x="760" y="318" width="392" height="94" rx="12" fill="#E2F1E8" stroke="#23794A" stroke-width="2.5"/>
+  <text class="m" x="782" y="350">scottsand-db</text>
+  <text class="d" x="782" y="376">reviewed 2 of the 3 PRs</text>
+  <text class="d" x="782" y="400">no commits of their own here yet</text>
+  <rect x="966" y="336" width="168" height="26" rx="13" fill="#F6E4EE"/>
+  <text class="chip" x="1050" y="354" text-anchor="middle">took part in decision</text>
+  <rect class="card" x="760" y="422" width="392" height="74" rx="12"/>
+  <text class="m" x="782" y="454">kaiqijinwow</text>
+  <text class="d" x="782" y="480">reviewed 1 · 1 own commit · 1 shared file</text>
+  <rect class="card" x="760" y="506" width="392" height="74" rx="12"/>
+  <text class="m" x="782" y="538">timothyw553</text>
+  <text class="d" x="782" y="564">reviewed 1 of the 3 PRs</text>
+
+  <!-- Result -->
+  <rect x="48" y="616" width="1104" height="166" rx="14" fill="#E2F1E8"/>
+  <text class="rt" x="76" y="652">SUGGESTED SUCCESSOR, BUILT ONLY FROM THE COLUMNS ABOVE</text>
+  <text class="rv1" x="76" y="690"><tspan font-weight="700" font-family="JetBrains Mono, Consolas, monospace">scottsand-db</tspan>: reviewed 2 of Hao Jiang’s 3 PRs here; no commits of their own here yet;</text>
+  <text class="rv1" x="76" y="718">took part in Catalog-Managed Tables.</text>
+  <text class="rv2" x="76" y="756">Order: reviews of the leaving person’s PRs, then shared files, own commits, reviews in the area. No weights.</text>
+  <text class="src" x="48" y="822">Rows from 18_handover_candidates, 18b_handover_reading and 18c_handover_decisions · live graph, 18 Oct 2026</text>
+</svg>

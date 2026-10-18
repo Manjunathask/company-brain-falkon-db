@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1000" width="1200" height="1000" role="img" aria-labelledby="t d">
+  <title id="t">Same label, two calculations</title>
+  <desc id="d">An illustration and a comparison table. In the illustration, a person has eight old commits and one
+  recent commit in an area. The old query counted all nine as recent because the person's latest commit fell inside
+  the 12-month window; the corrected query counts only the one recent commit, which is below the two-commit bar. The
+  table compares the old and corrected queries: commits counted, the threshold for the person leaving, and the risk
+  label. Run on the same graph, the old query reports 42 of 87 areas with a bus factor of 1 and the corrected query
+  25 of 69. The project did not change; the query did.</desc>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap');
+    .bg { fill: #FBFAF7; }
+    .h1 { font: 700 31px Inter, 'Segoe UI', sans-serif; fill: #1B1F29; letter-spacing: -.01em; }
+    .sub { font: 400 21px Inter, 'Segoe UI', sans-serif; fill: #5A6170; }
+    .band { font: 600 15px Inter, 'Segoe UI', sans-serif; letter-spacing: .12em; fill: #6B7280; }
+    .rowl { font: 600 19px Inter, 'Segoe UI', sans-serif; fill: #1B1F29; }
+    .cell { font: 400 19px Inter, 'Segoe UI', sans-serif; fill: #3A4150; }
+    .code { font: 600 19px 'JetBrains Mono', Consolas, monospace; }
+    .big { font: 700 46px Inter, 'Segoe UI', sans-serif; letter-spacing: -.01em; }
+    .unit { font: 500 18px Inter, 'Segoe UI', sans-serif; fill: #5A6170; }
+    .colh { font: 700 20px Inter, 'Segoe UI', sans-serif; }
+    .axis { stroke: #B9B3A7; stroke-width: 2; }
+    .tick { font: 500 16px Inter, 'Segoe UI', sans-serif; fill: #6B7280; }
+    .tag { font: 500 18px Inter, 'Segoe UI', sans-serif; }
+    .foot { font: 500 19px Inter, 'Segoe UI', sans-serif; fill: #1B1F29; }
+    .line { stroke: #E2DDD3; stroke-width: 1.5; }
+  </style>
+  <rect class="bg" width="1200" height="1000"/>
+  <text class="h1" x="48" y="58">Same label, two calculations</text>
+  <text class="sub" x="48" y="94">Both numbers claimed to describe “the last 12 months”. Only one of them counted that way.</text>
+
+  <!-- Part A: illustration -->
+  <rect x="48" y="126" width="1104" height="290" rx="14" fill="#FFFFFF" stroke="#DAD5CB" stroke-width="1.5"/>
+  <text class="band" x="72" y="160">ONE PERSON, ONE CODE AREA · ILLUSTRATION</text>
+  <rect x="736" y="176" width="392" height="214" rx="8" fill="#E3F1EF"/>
+  <text class="tick" x="932" y="200" text-anchor="middle" fill="#0B5E5D">last 12 months</text>
+  <text class="tick" x="318" y="200">2 years of loaded history</text>
+
+  <text class="rowl" x="72" y="256">Old query</text>
+  <line class="axis" x1="318" y1="250" x2="1128" y2="250"/>
+  <g fill="#D2491A">
+    <circle cx="350" cy="250" r="9"/><circle cx="398" cy="250" r="9"/><circle cx="446" cy="250" r="9"/>
+    <circle cx="494" cy="250" r="9"/><circle cx="552" cy="250" r="9"/><circle cx="604" cy="250" r="9"/>
+    <circle cx="652" cy="250" r="9"/><circle cx="694" cy="250" r="9"/><circle cx="930" cy="250" r="9"/>
+  </g>
+  <text class="tag" x="318" y="290" fill="#B23C12">The latest commit is recent, so all 9 were counted as recent commits.</text>
+
+  <text class="rowl" x="72" y="346">Corrected</text>
+  <line class="axis" x1="318" y1="340" x2="1128" y2="340"/>
+  <g fill="#FBFAF7" stroke="#B9B3A7" stroke-width="2">
+    <circle cx="350" cy="340" r="8"/><circle cx="398" cy="340" r="8"/><circle cx="446" cy="340" r="8"/>
+    <circle cx="494" cy="340" r="8"/><circle cx="552" cy="340" r="8"/><circle cx="604" cy="340" r="8"/>
+    <circle cx="652" cy="340" r="8"/><circle cx="694" cy="340" r="8"/>
+  </g>
+  <circle cx="930" cy="340" r="9" fill="#0E7C7B"/>
+  <text class="tag" x="318" y="380" fill="#0B5E5D">Only 1 commit is inside the window: below the 2-commit bar, so not counted.</text>
+
+  <!-- Part B: comparison table -->
+  <rect x="364" y="444" width="384" height="56" rx="10" fill="#FBE6DC"/>
+  <text class="colh" x="388" y="480" fill="#B23C12">Old query (until 17 Oct)</text>
+  <rect x="768" y="444" width="384" height="56" rx="10" fill="#E3F1EF"/>
+  <text class="colh" x="792" y="480" fill="#0B5E5D">Corrected query</text>
+
+  <text class="rowl" x="48" y="544">Commits counted</text>
+  <text class="cell" x="388" y="544">Every commit in the 2 loaded years,</text>
+  <text class="cell" x="388" y="570">if the person’s latest one is recent</text>
+  <text class="cell" x="792" y="544">Only commits made inside</text>
+  <text class="cell" x="792" y="570">the 12-month window</text>
+  <line class="line" x1="48" y1="596" x2="1152" y2="596"/>
+
+  <text class="rowl" x="48" y="632">Person leaving</text>
+  <text class="cell" x="388" y="632">One commit was enough to call</text>
+  <text class="cell" x="388" y="658">an area orphaned</text>
+  <text class="cell" x="792" y="632">Needs 2+ commits, the same bar</text>
+  <text class="cell" x="792" y="658">as everyone else</text>
+  <line class="line" x1="48" y1="684" x2="1152" y2="684"/>
+
+  <text class="rowl" x="48" y="720">Risk label</text>
+  <text class="code" x="388" y="720" fill="#B23C12">ORPHANED</text>
+  <text class="code" x="792" y="720" fill="#0B5E5D">NO OTHER AUTHOR</text>
+  <text class="cell" x="792" y="746">with active reviewers listed beside it</text>
+  <line class="line" x1="48" y1="772" x2="1152" y2="772"/>
+
+  <text class="rowl" x="48" y="818">Areas with a</text>
+  <text class="rowl" x="48" y="844">bus factor of 1</text>
+  <text class="big" x="388" y="846" fill="#B23C12">42 of 87</text>
+  <text class="big" x="792" y="846" fill="#0B5E5D">25 of 69</text>
+  <text class="unit" x="388" y="878">active code areas</text>
+  <text class="unit" x="792" y="878">active code areas</text>
+
+  <rect x="48" y="912" width="1104" height="60" rx="12" fill="#1B1F29"/>
+  <text x="600" y="949" text-anchor="middle" style="font: 500 20px Inter, 'Segoe UI', sans-serif; fill: #F5F2EC;">Both queries, re-run on the same graph on 18 Oct. The project didn’t change; the measurement did.</text>
+</svg>

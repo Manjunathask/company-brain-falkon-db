@@ -1,0 +1,107 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" width="1200" height="900" role="img" aria-labelledby="t d">
+  <title id="t">A note changes the suggestion, not the facts</title>
+  <desc id="d">Three columns kept apart. Repository facts in the delta graph list the candidates for flink/inttest and
+  are not changed by notes. A team note in the separate mem_team graph says scottsand-db is unavailable, on leave until
+  January; it is an unverified note made up for this demo. In Python the note's entity key person:scottsand-db is
+  matched to the Person node and passed to the query as an exclusion. The derived suggestion is recomputed: before the
+  note it is scottsand-db, after the note kaiqijinwow, and the packet says what changed and why.</desc>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap');
+    .bg { fill: #FBFAF7; }
+    .h1 { font: 700 31px Inter, 'Segoe UI', sans-serif; fill: #1B1F29; letter-spacing: -.01em; }
+    .sub { font: 400 21px Inter, 'Segoe UI', sans-serif; fill: #5A6170; }
+    .band { font: 700 15px Inter, 'Segoe UI', sans-serif; letter-spacing: .12em; }
+    .bsub { font: 400 17px Inter, 'Segoe UI', sans-serif; fill: #5A6170; }
+    .card { fill: #FFFFFF; stroke: #DAD5CB; stroke-width: 1.5; }
+    .m { font: 600 19px 'JetBrains Mono', Consolas, monospace; fill: #1B1F29; }
+    .mb { font: 700 24px 'JetBrains Mono', Consolas, monospace; fill: #1B1F29; }
+    .d { font: 400 17px Inter, 'Segoe UI', sans-serif; fill: #4A5160; }
+    .dk { font: 500 17px 'JetBrains Mono', Consolas, monospace; fill: #3A4150; }
+    .type { font: 600 14px Inter, 'Segoe UI', sans-serif; letter-spacing: .12em; }
+    .sep { stroke: #EEE9E0; stroke-width: 1.5; }
+    .q { font: 500 18px Inter, 'Segoe UI', sans-serif; fill: #6B4E12; }
+    .warn { font: 500 italic 16px Inter, 'Segoe UI', sans-serif; fill: #8A6417; }
+  </style>
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#8A8F98"/>
+    </marker>
+    <marker id="arA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#B7791F"/>
+    </marker>
+    <marker id="arG" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#23794A"/>
+    </marker>
+  </defs>
+  <rect class="bg" width="1200" height="900"/>
+  <text class="h1" x="48" y="58">A note changes the suggestion, not the facts</text>
+  <text class="sub" x="48" y="94">Three kinds of information, kept apart on purpose. Handover for flink/inttest.</text>
+
+  <!-- Column 1: repository facts -->
+  <text class="band" x="48" y="140" fill="#3A4150">REPOSITORY FACTS</text>
+  <text class="bsub" x="48" y="164">delta graph · notes never edit it</text>
+  <rect class="card" x="48" y="180" width="348" height="440" rx="14"/>
+  <text class="m" x="70" y="220">scottsand-db</text>
+  <text class="d" x="70" y="246">reviewed 2 of 3 PRs · 0 own commits</text>
+  <line class="sep" x1="70" y1="270" x2="374" y2="270"/>
+  <text class="m" x="70" y="304">kaiqijinwow</text>
+  <text class="d" x="70" y="330">reviewed 1 of 3 · 1 of 9 files · 1 commit</text>
+  <line class="sep" x1="70" y1="354" x2="374" y2="354"/>
+  <text class="m" x="70" y="388">timothyw553</text>
+  <text class="d" x="70" y="414">reviewed 1 of 3 · 2 reviews in the area</text>
+  <line class="sep" x1="70" y1="438" x2="374" y2="438"/>
+  <text class="m" x="70" y="472">huan233usc</text>
+  <text class="d" x="70" y="498">reviewed 1 of 3</text>
+  <line class="sep" x1="70" y1="522" x2="374" y2="522"/>
+  <text class="m" x="70" y="556">tdas</text>
+  <text class="d" x="70" y="582">reviewed 1 of 3 · shared decision</text>
+
+  <!-- Column 2: team note -->
+  <text class="band" x="426" y="140" fill="#8A6417">TEAM NOTE · UNVERIFIED</text>
+  <text class="bsub" x="426" y="164">mem_team graph · typed on the page</text>
+  <rect x="426" y="180" width="348" height="226" rx="14" fill="#FCF1DC" stroke="#D9B26A" stroke-width="1.8" stroke-dasharray="8 6"/>
+  <text class="type" x="448" y="214" fill="#8A6417">AVAILABILITY NOTE</text>
+  <text class="m" x="448" y="248">scottsand-db</text>
+  <text class="d" x="448" y="274">status: unavailable</text>
+  <text class="q" x="448" y="306">“on leave until January”</text>
+  <text class="d" x="448" y="338">anonymous visitor · 18 Oct 2026</text>
+  <text class="warn" x="448" y="380">Made up for this demo, not a fact.</text>
+
+  <rect class="card" x="426" y="426" width="348" height="194" rx="14"/>
+  <text class="type" x="448" y="458" fill="#6B7280">HOW THE NOTE REACHES THE QUERY</text>
+  <text class="dk" x="448" y="492">person:scottsand-db</text>
+  <text class="d" x="448" y="518">matched to the Person node in</text>
+  <text class="d" x="448" y="542">Python; graphs share no edges</text>
+  <text class="dk" x="448" y="580">IN $exclude AS skipped</text>
+  <text class="d" x="448" y="604">the Cypher stays the same</text>
+
+  <!-- Column 3: derived suggestion -->
+  <text class="band" x="804" y="140" fill="#23794A">DERIVED SUGGESTION</text>
+  <text class="bsub" x="804" y="164">recomputed for every packet</text>
+  <rect class="card" x="804" y="180" width="348" height="150" rx="14"/>
+  <text class="type" x="826" y="214" fill="#6B7280">BEFORE THE NOTE</text>
+  <text class="mb" x="826" y="254">scottsand-db</text>
+  <text class="d" x="826" y="284">reviewed 2 of Hao Jiang’s 3 PRs</text>
+  <text class="d" x="826" y="308">here; took part in the decision</text>
+  <line x1="978" y1="332" x2="978" y2="384" stroke="#23794A" stroke-width="2.2" marker-end="url(#arG)"/>
+  <rect x="804" y="388" width="348" height="232" rx="14" fill="#E2F1E8" stroke="#23794A" stroke-width="2.5"/>
+  <text class="type" x="826" y="422" fill="#23794A">AFTER THE NOTE</text>
+  <text class="mb" x="826" y="462">kaiqijinwow</text>
+  <text class="d" x="826" y="492">reviewed 1 of 3 PRs; edited 1 of</text>
+  <text class="d" x="826" y="516">the 9 files; 1 commit of their own</text>
+  <line class="sep" x1="826" y1="540" x2="1130" y2="540" stroke="#C5E1CF"/>
+  <text class="d" x="826" y="572">Skipped: scottsand-db</text>
+  <text class="d" x="826" y="596">(unverified availability note)</text>
+
+  <!-- Flows -->
+  <path d="M222,620 L222,654 L978,654 L978,624" fill="none" stroke="#8A8F98" stroke-width="2" marker-end="url(#ar)"/>
+  <path d="M774,300 L789,300 L789,500 L800,500" fill="none" stroke="#B7791F" stroke-width="2.2" stroke-dasharray="6 5" marker-end="url(#arA)"/>
+  <text x="600" y="680" text-anchor="middle" class="bsub">facts and the note meet only when the packet is built</text>
+
+  <!-- What changed, in the packet's own words -->
+  <rect x="48" y="716" width="1104" height="150" rx="14" fill="#FFF8E8" stroke="#E8CF9A" stroke-width="1.5"/>
+  <text class="type" x="76" y="752" fill="#8A6417">THE PACKET’S OWN WORDS</text>
+  <text x="76" y="790" style="font: 500 19px Inter, 'Segoe UI', sans-serif; fill: #1B1F29;">What changed: The packet saved on 18 Oct 2026 suggested scottsand-db; now kaiqijinwow.</text>
+  <text x="76" y="820" style="font: 500 19px Inter, 'Segoe UI', sans-serif; fill: #1B1F29;">Why: scottsand-db was marked unavailable on 18 Oct 2026: on leave until January</text>
+  <text x="76" y="850" style="font: 500 19px Inter, 'Segoe UI', sans-serif; fill: #1B1F29;">(unverified note).</text>
+</svg>

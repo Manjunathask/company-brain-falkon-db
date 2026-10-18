@@ -1,0 +1,140 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1200" width="1200" height="1200" role="img" aria-labelledby="t d">
+  <title id="t">Bus Factor architecture</title>
+  <desc id="d">Public delta-io/delta sources (git history, the GitHub GraphQL API, the RFC table and CODEOWNERS) are parsed
+  by Python and saved as a public snapshot. Load, link and derive steps run Cypher files into FalkorDB. FalkorDB holds
+  separate graphs: delta for repository facts, mem_team for shared notes, one mem_v graph per visitor, and temporary
+  whatif copies for the collaboration simulation. A Python tool layer runs a fixed catalogue of read-only Cypher files,
+  checks names first, and joins memory to repository entities by Entity.key in Python. The web app calls the tools
+  directly; the agent (Claude Sonnet 5.5) chooses tools and parameters but never writes Cypher. Every answer ships with
+  its rows, the Cypher and an evidence graph.</desc>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap');
+    .bg { fill: #FBFAF7; }
+    .h1 { font: 700 31px Inter, 'Segoe UI', sans-serif; fill: #1B1F29; letter-spacing: -.01em; }
+    .sub { font: 400 21px Inter, 'Segoe UI', sans-serif; fill: #5A6170; }
+    .band { font: 600 15px Inter, 'Segoe UI', sans-serif; letter-spacing: .12em; fill: #6B7280; }
+    .card { fill: #FFFFFF; stroke: #DAD5CB; stroke-width: 1.5; }
+    .t { font: 600 20px Inter, 'Segoe UI', sans-serif; fill: #1B1F29; }
+    .m { font: 600 20px 'JetBrains Mono', Consolas, monospace; fill: #1B1F29; }
+    .d { font: 400 18px Inter, 'Segoe UI', sans-serif; fill: #4A5160; }
+    .dm { font: 400 17px 'JetBrains Mono', Consolas, monospace; fill: #4A5160; }
+    .flow { stroke: #8A8F98; stroke-width: 2.2; fill: none; }
+    .flabel { font: 500 17px 'JetBrains Mono', Consolas, monospace; fill: #5A6170; }
+    .fk { fill: #F1EEE7; stroke: #1B1F29; stroke-width: 2; }
+    .fklabel { font: 700 16px Inter, 'Segoe UI', sans-serif; letter-spacing: .14em; fill: #1B1F29; }
+    .tools { fill: #E3F1EF; stroke: #0E7C7B; stroke-width: 1.8; }
+    .note { fill: #FCF1DC; stroke: #D9B26A; stroke-width: 1.5; }
+    .temp { fill: #FFFFFF; stroke: #8A8F98; stroke-width: 1.6; stroke-dasharray: 7 6; }
+    .agent { fill: #FFFFFF; stroke: #5A49B5; stroke-width: 2; }
+    .out { fill: #1B1F29; }
+    .outt { font: 500 20px Inter, 'Segoe UI', sans-serif; fill: #F5F2EC; }
+    .pill { font: 600 13px Inter, 'Segoe UI', sans-serif; letter-spacing: .1em; }
+  </style>
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#8A8F98"/>
+    </marker>
+    <marker id="arT" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#0E7C7B"/>
+    </marker>
+    <marker id="arV" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#5A49B5"/>
+    </marker>
+  </defs>
+  <rect class="bg" width="1200" height="1200"/>
+  <text class="h1" x="48" y="58">How Bus Factor is put together</text>
+  <text class="sub" x="48" y="94">Data flows down into FalkorDB. Every answer is read back up through a fixed set of Cypher files.</text>
+
+  <!-- 1. Sources -->
+  <text class="band" x="48" y="146">PUBLIC SOURCES · github.com/delta-io/delta</text>
+  <rect class="card" x="48" y="162" width="264" height="84" rx="12"/>
+  <text class="t" x="70" y="196">Git history</text>
+  <text class="d" x="70" y="226">2,240 commits, 2 years</text>
+  <rect class="card" x="328" y="162" width="264" height="84" rx="12"/>
+  <text class="t" x="350" y="196">GitHub GraphQL API</text>
+  <text class="d" x="350" y="226">PRs, reviews, RFC issues</text>
+  <rect class="card" x="608" y="162" width="264" height="84" rx="12"/>
+  <text class="t" x="630" y="196">RFC table</text>
+  <text class="d" x="630" y="226">19 design decisions</text>
+  <rect class="card" x="888" y="162" width="264" height="84" rx="12"/>
+  <text class="t" x="910" y="196">CODEOWNERS</text>
+  <text class="d" x="910" y="226">declared owners</text>
+  <path d="M180,246 L180,262 M460,246 L460,262 M740,246 L740,262 M1020,246 L1020,262 M180,262 L1020,262" stroke="#8A8F98" stroke-width="2.2" fill="none"/>
+  <line class="flow" x1="298" y1="262" x2="298" y2="282" marker-end="url(#ar)"/>
+
+  <!-- 2. Ingest and snapshot -->
+  <rect class="card" x="48" y="286" width="500" height="92" rx="12"/>
+  <text class="t" x="70" y="322">Python parsers</text>
+  <text class="d" x="70" y="352">every API response cached under data/raw</text>
+  <line class="flow" x1="548" y1="332" x2="648" y2="332" marker-end="url(#ar)"/>
+  <text class="flabel" x="598" y="320" text-anchor="middle">export</text>
+  <rect class="card" x="652" y="286" width="500" height="92" rx="12"/>
+  <text class="t" x="674" y="322">Public snapshot in the repo</text>
+  <text class="d" x="674" y="352">1.7 MB gzipped · rebuilds the graph in about 11 s</text>
+  <line class="flow" x1="902" y1="378" x2="902" y2="444" marker-end="url(#ar)"/>
+  <text class="flabel" x="884" y="408" text-anchor="end">load · link · derive</text>
+  <text class="flabel" x="884" y="430" text-anchor="end">queries/*.cypher · MERGE, 500 rows a batch</text>
+
+  <!-- 3. FalkorDB -->
+  <rect class="fk" x="48" y="448" width="1104" height="270" rx="16"/>
+  <text class="fklabel" x="72" y="480">FALKORDB · ONE SERVER, SEPARATE GRAPHS</text>
+  <rect class="card" x="72" y="496" width="500" height="198" rx="12"/>
+  <text class="m" x="94" y="530">delta</text>
+  <text class="d" x="94" y="562">Person · Commit · File · Code area · Module</text>
+  <text class="d" x="94" y="590">PR · Issue · Decision</text>
+  <text class="d" x="94" y="626">derived: KNOWS · WORKS_WITH ·</text>
+  <text class="d" x="94" y="654">PARTICIPATED_IN · Active label</text>
+  <text class="dm" x="94" y="682">11,033 nodes · 39,869 relationships</text>
+
+  <rect class="note" x="596" y="496" width="264" height="96" rx="12"/>
+  <text class="m" x="616" y="528">mem_team</text>
+  <text class="d" x="616" y="556">shared notes: availability,</text>
+  <text class="d" x="616" y="580">saved handovers, refresh</text>
+  <rect class="card" x="876" y="496" width="252" height="96" rx="12"/>
+  <text class="m" x="896" y="528">mem_v_&lt;visitor&gt;</text>
+  <text class="d" x="896" y="556">one per browser:</text>
+  <text class="d" x="896" y="580">questions, corrections</text>
+
+  <rect class="temp" x="596" y="606" width="532" height="88" rx="12"/>
+  <text class="m" x="616" y="638">whatif_* <tspan class="d">(temporary copy)</tspan></text>
+  <text class="d" x="616" y="668">GRAPH.COPY → drop one person → WCC + betweenness</text>
+
+  <!-- arrows between FalkorDB and tools -->
+  <line class="flow" x1="420" y1="718" x2="420" y2="774" marker-start="url(#ar)" marker-end="url(#ar)"/>
+  <text class="flabel" x="436" y="752">Cypher in, rows out</text>
+  <line class="flow" x1="862" y1="718" x2="862" y2="774" marker-start="url(#ar)" marker-end="url(#ar)"/>
+  <text class="flabel" x="878" y="752">read and write notes</text>
+
+  <!-- 4. Tool layer -->
+  <rect class="tools" x="48" y="778" width="1104" height="150" rx="16"/>
+  <text class="band" x="72" y="808" fill="#0B5E5D">PYTHON TOOL LAYER · tools.py · handover.py · memory.py</text>
+  <text class="t" x="72" y="846">Fixed catalogue</text>
+  <text class="d" x="72" y="874">each tool runs one reviewed .cypher</text>
+  <text class="d" x="72" y="900">file, read-only (GRAPH.RO_QUERY)</text>
+  <text class="t" x="440" y="846">Names checked first</text>
+  <text class="d" x="440" y="874">an unknown login or area stops the</text>
+  <text class="d" x="440" y="900">tool before any query runs</text>
+  <text class="t" x="808" y="846">Memory joined in Python</text>
+  <text class="d" x="808" y="874">notes meet repository facts by</text>
+  <text class="d" x="808" y="900">Entity.key; no edge crosses graphs</text>
+
+  <!-- 5. Consumers -->
+  <line class="flow" x1="300" y1="928" x2="300" y2="966" marker-end="url(#ar)"/>
+  <rect class="card" x="48" y="970" width="528" height="118" rx="12"/>
+  <text class="t" x="70" y="1004">Web app</text>
+  <text class="dm" x="164" y="1004">FastAPI · one page · Cytoscape.js</text>
+  <text class="d" x="70" y="1036">The departure view and handover packets</text>
+  <text class="d" x="70" y="1062">call tools directly. No model is involved.</text>
+
+  <line x1="880" y1="966" x2="880" y2="930" stroke="#5A49B5" stroke-width="2.2" marker-end="url(#arV)"/>
+  <text class="flabel" x="896" y="954" fill="#5A49B5">picks a tool + parameters</text>
+  <rect class="agent" x="624" y="970" width="528" height="118" rx="12"/>
+  <text class="t" x="646" y="1004">Agent</text>
+  <text class="dm" x="716" y="1004">Claude Sonnet 5.5</text>
+  <text class="d" x="646" y="1036">Never writes Cypher. Names in its reply are</text>
+  <text class="d" x="646" y="1062">checked against the rows the tools returned.</text>
+
+  <!-- 6. Output -->
+  <rect class="out" x="48" y="1112" width="1104" height="60" rx="14"/>
+  <text class="outt" x="600" y="1149" text-anchor="middle">Every answer ships with its rows, the Cypher behind them and an evidence graph.</text>
+</svg>

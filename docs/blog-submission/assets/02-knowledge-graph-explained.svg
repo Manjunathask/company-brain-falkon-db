@@ -1,0 +1,131 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" width="1200" height="900" role="img" aria-labelledby="t d">
+  <title id="t">How separate records become one connected path</title>
+  <desc id="d">Seven nodes from the Bus Factor graph. Hao Jiang (harperjiang) authored commit fa642d6, which touched
+  CatalogManagedTableIntTest.java in the code area flink/inttest and is part of pull request 6188. Scott Sandre
+  (scottsand-db) reviewed pull request 6188. The pull request title matches the Catalog-Managed Tables decision, a
+  low-confidence link drawn dashed. Following code area to file to commit to pull request to reviewer answers who else
+  has seen the code in flink/inttest, which no single record answers.</desc>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap');
+    .bg { fill: #FBFAF7; }
+    .h1 { font: 700 31px Inter, 'Segoe UI', sans-serif; fill: #1B1F29; letter-spacing: -.01em; }
+    .sub { font: 400 21px Inter, 'Segoe UI', sans-serif; fill: #5A6170; }
+    .card { fill: #FFFFFF; stroke: #DAD5CB; stroke-width: 1.5; }
+    .type { font: 600 15px Inter, 'Segoe UI', sans-serif; letter-spacing: .12em; }
+    .val { font: 600 22px Inter, 'Segoe UI', sans-serif; fill: #1B1F29; }
+    .mono { font: 500 19px 'JetBrains Mono', Consolas, monospace; fill: #1B1F29; }
+    .edge { stroke: #8A8F98; stroke-width: 2; fill: none; }
+    .edge.guess { stroke: #A23B72; stroke-dasharray: 7 6; }
+    .elabel { font: 600 14px 'JetBrains Mono', Consolas, monospace; fill: #6B7280; letter-spacing: .02em; }
+    .glow { stroke: #0E7C7B; stroke-width: 16; stroke-linecap: round; stroke-linejoin: round; fill: none; opacity: .16; }
+    .note { font: 400 19px Inter, 'Segoe UI', sans-serif; fill: #4A5160; }
+    .noteb { font: 600 19px Inter, 'Segoe UI', sans-serif; fill: #1B1F29; }
+    .qlabel { font: 600 15px Inter, 'Segoe UI', sans-serif; letter-spacing: .12em; fill: #0E7C7B; }
+    .q { font: 600 23px Inter, 'Segoe UI', sans-serif; fill: #1B1F29; }
+    .a { font: 400 20px Inter, 'Segoe UI', sans-serif; fill: #3A4150; }
+    .chip { font: 500 17px 'JetBrains Mono', Consolas, monospace; fill: #0B5E5D; }
+  </style>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#8A8F98"/>
+    </marker>
+    <marker id="arrowGuess" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#A23B72"/>
+    </marker>
+  </defs>
+  <rect class="bg" width="1200" height="900"/>
+
+  <text class="h1" x="48" y="62">One small piece of the graph</text>
+  <text class="sub" x="48" y="98">Each box is a node; each arrow, a named relationship. All of it comes from public delta-io/delta history.</text>
+
+  <!-- Highlighted path: flink/inttest <- file <- commit -> PR <- scottsand-db -->
+  <path class="glow" d="M1058,236 L782,236 L470,236 L470,452 L250,452"/>
+
+  <!-- Row 1: harperjiang -AUTHORED-> commit -TOUCHED-> file -IN_COMPONENT-> code area -->
+  <g>
+    <rect class="card" x="48" y="186" width="200" height="100" rx="12"/>
+    <rect x="48" y="186" width="7" height="100" rx="3" fill="#D2491A"/>
+    <text class="type" x="72" y="218" fill="#D2491A">PERSON</text>
+    <text class="mono" x="72" y="254">harperjiang</text>
+  </g>
+  <line class="edge" x1="248" y1="236" x2="356" y2="236" marker-end="url(#arrow)"/>
+  <text class="elabel" x="302" y="224" text-anchor="middle">AUTHORED</text>
+
+  <g>
+    <rect class="card" x="360" y="186" width="220" height="100" rx="12"/>
+    <rect x="360" y="186" width="7" height="100" rx="3" fill="#6B7280"/>
+    <text class="type" x="384" y="218" fill="#6B7280">COMMIT</text>
+    <text class="mono" x="384" y="254">fa642d6</text>
+  </g>
+  <line class="edge" x1="580" y1="236" x2="660" y2="236" marker-end="url(#arrow)"/>
+  <text class="elabel" x="620" y="224" text-anchor="middle">TOUCHED</text>
+
+  <g>
+    <rect class="card" x="664" y="176" width="270" height="120" rx="12"/>
+    <rect x="664" y="176" width="7" height="120" rx="3" fill="#6B7280"/>
+    <text class="type" x="688" y="207" fill="#6B7280">FILE</text>
+    <text class="mono" x="688" y="241">CatalogManagedTable</text>
+    <text class="mono" x="688" y="269">IntTest.java</text>
+  </g>
+  <line class="edge" x1="934" y1="236" x2="962" y2="236" marker-end="url(#arrow)"/>
+  <text class="elabel" x="948" y="168" text-anchor="middle">IN_COMPONENT</text>
+  <line x1="948" y1="174" x2="948" y2="226" stroke="#C9C3B7" stroke-width="1.2"/>
+
+  <g>
+    <rect class="card" x="966" y="186" width="186" height="100" rx="12" stroke="#0E7C7B" stroke-width="2.5"/>
+    <rect x="966" y="186" width="7" height="100" rx="3" fill="#B8650F"/>
+    <text class="type" x="990" y="218" fill="#B8650F">CODE AREA</text>
+    <text class="mono" x="990" y="254">flink/inttest</text>
+  </g>
+
+  <!-- Commit -PART_OF-> PR -->
+  <line class="edge" x1="470" y1="286" x2="470" y2="398" marker-end="url(#arrow)"/>
+  <text class="elabel" x="482" y="348">PART_OF</text>
+
+  <g>
+    <rect class="card" x="360" y="402" width="220" height="100" rx="12"/>
+    <rect x="360" y="402" width="7" height="100" rx="3" fill="#6B4FB0"/>
+    <text class="type" x="384" y="434" fill="#6B4FB0">PULL REQUEST</text>
+    <text class="mono" x="384" y="470">#6188</text>
+  </g>
+
+  <!-- scottsand-db -REVIEWED-> PR -->
+  <g>
+    <rect class="card" x="48" y="402" width="200" height="100" rx="12" stroke="#0E7C7B" stroke-width="2.5"/>
+    <rect x="48" y="402" width="7" height="100" rx="3" fill="#0E7C7B"/>
+    <text class="type" x="72" y="434" fill="#0E7C7B">PERSON</text>
+    <text class="mono" x="72" y="470">scottsand-db</text>
+  </g>
+  <line class="edge" x1="248" y1="452" x2="356" y2="452" marker-end="url(#arrow)"/>
+  <text class="elabel" x="302" y="440" text-anchor="middle">REVIEWED</text>
+
+  <!-- PR -IMPLEMENTS (title match)-> Decision -->
+  <line class="edge guess" x1="470" y1="502" x2="470" y2="600" marker-end="url(#arrowGuess)"/>
+  <text class="elabel" x="456" y="546" fill="#A23B72" text-anchor="end">IMPLEMENTS</text>
+  <text class="elabel" x="456" y="566" fill="#A23B72" text-anchor="end">title match · low confidence</text>
+  <g>
+    <rect class="card" x="312" y="604" width="316" height="100" rx="12"/>
+    <rect x="312" y="604" width="7" height="100" rx="3" fill="#A23B72"/>
+    <text class="type" x="336" y="636" fill="#A23B72">DESIGN DECISION (RFC)</text>
+    <text class="val" x="336" y="673">Catalog-Managed Tables</text>
+  </g>
+
+  <!-- Explanations on the right -->
+  <g transform="translate(700,392)">
+    <text class="noteb" x="0" y="24">A node is a thing.</text>
+    <text class="note" x="0" y="52">A person, a commit, a file, a pull request,</text>
+    <text class="note" x="0" y="78">a code area, a design decision.</text>
+    <text class="noteb" x="0" y="126">A relationship is a named link.</text>
+    <text class="note" x="0" y="154">It has a direction and a meaning:</text>
+    <text class="note" x="0" y="180">who authored, what was touched, who reviewed.</text>
+    <text class="noteb" x="0" y="228">A dashed link is a guess.</text>
+    <text class="note" x="0" y="256">The PR title mentions the decision, but</text>
+    <text class="note" x="0" y="282">nothing in the PR cites it explicitly.</text>
+  </g>
+
+  <!-- Question strip -->
+  <rect x="48" y="744" width="1104" height="124" rx="14" fill="#E3F1EF"/>
+  <text class="qlabel" x="76" y="782">FOLLOW THE PATH</text>
+  <text class="q" x="76" y="818">Who else has seen the code in flink/inttest?</text>
+  <text class="a" x="76" y="850">code area ← file ← commit → pull request ← reviewer: <tspan font-weight="600" fill="#0B5E5D">scottsand-db</tspan>, who has no recent commits there.</text>
+</svg>
