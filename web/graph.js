@@ -1,4 +1,6 @@
 export const GRAPH_CAP = 60;
+// More nodes than this side by side cannot be read in the evidence panel.
+const MAX_ROW = 10;
 
 function nodeText(node) {
   const props = node.props || {};
@@ -21,6 +23,41 @@ function mainNode(node, roots) {
     root === node.props?.path ||
     root === node.props?.slug
   ));
+}
+
+// Departure graphs ring around the leaving person; other graphs grow as a tree from the asked-about node.
+export function evidenceLayout(shown, roots = [], mode = "chat") {
+  if (mode === "departure") {
+    return {
+      name: "concentric",
+      concentric: element => element.hasClass("departing") ? 3
+        : element.hasClass("component") || element.hasClass("decision") ? 2 : 1,
+      levelWidth: () => 1,
+    };
+  }
+  if (shown.nodes.length > 1 && shown.edges.length) {
+    const rootIds = shown.nodes
+      .filter(node => node.focusRole === "departing" || mainNode(node, roots))
+      .map(node => String(node.id));
+    const layout = { name: "breadthfirst", directed: false };
+    // An empty roots list puts every node on one row; omit it so Cytoscape picks roots.
+    if (rootIds.length) layout.roots = rootIds;
+    return layout;
+  }
+  return { name: "cose", animate: false };
+}
+
+// Breadthfirst puts each level of the tree on one row, so nodes in a row share a y position.
+export function widestRow(nodes) {
+  const rows = new Map();
+  let widest = 0;
+  for (const node of Array.from(nodes)) {
+    const y = Math.round(node.position("y"));
+    const count = (rows.get(y) || 0) + 1;
+    rows.set(y, count);
+    widest = Math.max(widest, count);
+  }
+  return widest;
 }
 
 // Retain a rooted breadth-first subgraph, reserving room for departure story nodes.
@@ -224,22 +261,7 @@ export function renderEvidence(panel, graph = {}, options = {}) {
     },
     { selector: ":selected", style: { "border-width": 4, "border-color": "#14264a" } },
   ];
-  const layout = options.layout === "departure"
-    ? {
-      name: "concentric",
-      concentric: element => element.hasClass("departing") ? 3
-        : element.hasClass("component") || element.hasClass("decision") ? 2 : 1,
-      levelWidth: () => 1,
-    }
-    : shown.nodes.length > 1 && shown.edges.length
-      ? {
-        name: "breadthfirst",
-        directed: false,
-        roots: shown.nodes
-          .filter(node => node.focusRole === "departing" || mainNode(node, options.roots || []))
-          .map(node => String(node.id)),
-      }
-      : { name: "cose", animate: false };
+  let layout = evidenceLayout(shown, options.roots || [], options.layout);
 
   canvas._cy = window.cytoscape({
     container: canvas,
@@ -250,20 +272,18 @@ export function renderEvidence(panel, graph = {}, options = {}) {
     maxZoom: 2.5,
     userZoomingEnabled: true,
   });
+  // Breadthfirst draws each level as one row. More than MAX_ROW nodes in a row
+  // cannot be read in the panel (a decision with 38 participants), so draw levels as rings.
+  if (layout.name === "breadthfirst" && widestRow(canvas._cy.nodes()) > MAX_ROW) {
+    layout = { ...layout, circle: true };
+    canvas._cy.layout(layout).run();
+  }
   canvas._cy.on("tap", "node", event => {
     detail.textContent = JSON.stringify(event.target.data("raw"), null, 2);
   });
   panel.querySelector(".fit-graph").onclick = () => canvas._cy?.fit(undefined, 24);
   panel.querySelector(".reset-graph").onclick = () => {
-    const resetLayout = options.layout === "departure"
-      ? {
-        name: "concentric",
-        concentric: element => element.hasClass("departing") ? 3
-          : element.hasClass("component") || element.hasClass("decision") ? 2 : 1,
-        levelWidth: () => 1,
-      }
-      : { name: "breadthfirst" };
-    canvas._cy?.layout(resetLayout).run();
+    canvas._cy?.layout(layout).run();
     canvas._cy?.fit(undefined, 24);
   };
   panel.querySelector(".zoom-in").onclick = () => canvas._cy?.zoom(canvas._cy.zoom() * 1.2);

@@ -103,6 +103,15 @@ def test_graph_cap_javascript_unit():
     subprocess.run([node, str(script)], check=True, capture_output=True, text=True)
 
 
+def test_graph_layout_javascript_unit():
+    from pathlib import Path
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node is not installed")
+    script = Path(__file__).resolve().parent / "js" / "test_graph_layout.mjs"
+    subprocess.run([node, str(script)], check=True, capture_output=True, text=True)
+
+
 def test_direct_tool_endpoint_returns_cypher_rows_and_graph(client):
     response = client.post("/api/tools/find_entity", json={"params":{"text":"alice"}})
     assert response.status_code == 200

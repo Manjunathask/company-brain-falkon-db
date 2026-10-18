@@ -1,4 +1,4 @@
-import { renderEvidence } from "./graph.js?v=11b";
+import { renderEvidence } from "./graph.js?v=17";
 import { mountPeopleCombobox } from "./people-combobox.js?v=11b";
 
 const $ = selector => document.querySelector(selector);
